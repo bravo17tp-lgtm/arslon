@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sevgi</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1c2e; --bg2:#16273d; --bg3:#1c3149;
+    --cream:#f3ead9; --cream-dim:#a9a091; --cream-faint:#6f6a5f;
+    --gold:#d4af6a; --gold-soft:rgba(212,175,106,0.16); --gold-dim:#9c7e46;
+    --coral:#e0958c; --coral-soft:rgba(224,149,140,0.16);
+    --line:rgba(243,234,217,0.09); --line-strong:rgba(243,234,217,0.18);
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg); color:var(--cream); font-family:'Work Sans',sans-serif;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+    background-image:
+      radial-gradient(ellipse 700px 450px at 10% -5%, rgba(224,149,140,0.09), transparent 60%),
+      radial-gradient(ellipse 600px 450px at 100% 0%, rgba(212,175,106,0.08), transparent 55%);
+  }
+  h1,h2,h3{font-family:'Fraunces',serif; font-weight:500;}
+  button{font-family:inherit; cursor:pointer; border:none;}
+  ::selection{background:var(--gold-soft);}
+
+  #app{ max-width:520px; margin:0 auto; min-height:100vh; padding-bottom:86px; position:relative; z-index:1; }
+  #bgFx{ position:fixed; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; transition:opacity .6s ease; }
+
+  /* Loading / gate screens */
+  .gate{ min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px 28px; }
+  .gate .emoji{ font-size:44px; margin-bottom:16px; }
+  .gate h2{ font-size:20px; margin-bottom:8px; }
+  .gate p{ color:var(--cream-dim); font-size:14px; line-height:1.6; max-width:32ch; }
+  .spinner{ width:28px; height:28px; border-radius:50%; border:3px solid var(--line-strong); border-top-color:var(--gold); animation:spin 0.8s linear infinite; margin-bottom:18px; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* Header */
+  header{ display:flex; align-items:center; justify-content:space-between; padding:20px 20px 6px; }
+  .h-title{ font-size:19px; letter-spacing:-0.01em; }
+  .h-title span{ color:var(--gold); }
+  .gear-btn{ background:var(--bg2); border:1px solid var(--line-strong); width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:17px; color:var(--cream-dim); transition:transform .15s ease; }
+  .gear-btn:active{ transform:scale(0.9) rotate(20deg); }
+
+  .view{ padding:14px 20px 10px; animation:fadeSlide .35s cubic-bezier(.2,.8,.3,1); }
+  @keyframes fadeSlide{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+  .view.hidden{ display:none; }
+
+  /* Cards */
+  .card{ background:var(--bg2); border:1px solid var(--line); border-radius:18px; padding:20px; margin-bottom:16px; }
+  .card h3{ font-size:15.5px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+
+  .emoji-img{ height:1em; width:1em; vertical-align:-0.15em; object-fit:contain; display:inline-block; }
+  .card h3 .emoji-img{ height:16px; width:16px; vertical-align:-2px; }
+  nav.bottom button .ic .emoji-img{ height:20px; width:20px; }
+  .gear-btn .emoji-img{ height:17px; width:17px; }
+
+  /* Hero (together counter) — redesigned */
+  .hero{ background:linear-gradient(170deg,var(--bg3),var(--bg2)); border:1px solid var(--line-strong); border-radius:24px; padding:30px 20px 24px; text-align:center; margin-bottom:16px; position:relative; overflow:hidden; }
+  .hero::before{ content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 0%, rgba(212,175,106,0.12), transparent 60%); pointer-events:none; }
+  .hero::after{ content:''; position:absolute; width:200px; height:200px; border-radius:50%; background:radial-gradient(circle, rgba(224,149,140,0.10), transparent 70%); bottom:-100px; left:-60px; pointer-events:none; }
+  .hero-heart{ width:30px; height:30px; margin:0 auto 6px; animation:heartbeat 1.8s ease-in-out infinite; }
+  @keyframes heartbeat{ 0%,100%{ transform:scale(1); } 15%{ transform:scale(1.18); } 30%{ transform:scale(1); } 45%{ transform:scale(1.1); } 60%{ transform:scale(1); } }
+  .hero-label{ font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:var(--gold-dim); font-weight:600; margin-bottom:16px; }
+
+  .together-grid{ display:flex; align-items:flex-end; justify-content:center; gap:2px; position:relative; z-index:1; }
+  .t-unit{ display:flex; flex-direction:column; align-items:center; min-width:58px; }
+  .t-num{ font-family:'Fraunces',serif; font-size:38px; font-weight:700; color:var(--gold); line-height:1; font-variant-numeric:tabular-nums; text-shadow:0 0 24px rgba(212,175,106,0.35); }
+  .t-label{ font-size:10.5px; color:var(--cream-faint); text-transform:uppercase; letter-spacing:0.08em; margin-top:5px; }
+  .t-sep{ font-family:'Fraunces',serif; font-size:26px; color:var(--line-strong); padding-bottom:16px; }
+
+  .together-secs{ display:flex; align-items:center; justify-content:center; gap:7px; font-size:12px; color:var(--cream-faint); margin-top:16px; font-variant-numeric:tabular-nums; letter-spacing:0.02em; }
+  .live-dot{ width:6px; height:6px; border-radius:50%; background:#7cc98a; box-shadow:0 0 0 0 rgba(124,201,138,0.6); animation:livepulse 1.6s ease-out infinite; }
+  @keyframes livepulse{ 0%{ box-shadow:0 0 0 0 rgba(124,201,138,0.55); } 70%{ box-shadow:0 0 0 7px rgba(124,201,138,0); } 100%{ box-shadow:0 0 0 0 rgba(124,201,138,0); } }
+
+  .quote{ font-family:'Fraunces',serif; font-style:italic; font-weight:400; font-size:14px; color:var(--cream-dim); margin-top:18px; line-height:1.55; position:relative; z-index:1; padding:0 6px; }
+  .quote::before{ content:'“'; color:var(--gold-dim); font-size:22px; margin-right:2px; font-family:'Fraunces',serif; }
+  .quote::after{ content:'”'; color:var(--gold-dim); font-size:22px; margin-left:2px; font-family:'Fraunces',serif; }
+
+  .mood-row{ display:flex; gap:12px; }
+  .mood-box{ flex:1; background:rgba(243,234,217,0.04); border:1px solid var(--line); border-radius:14px; padding:14px; text-align:center; }
+  .mood-box .who{ font-size:11px; color:var(--cream-faint); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; }
+  .mood-box .emo{ font-size:28px; }
+
+  .special-strip{ display:flex; align-items:center; gap:10px; background:var(--coral-soft); border:1px solid rgba(224,149,140,0.3); border-radius:14px; padding:12px 14px; font-size:13px; color:var(--cream); margin-bottom:16px; }
+
+  /* Question card */
+  .q-text{ font-family:'Fraunces',serif; font-style:italic; font-size:15px; margin-bottom:12px; color:var(--cream); }
+  .answer-line{ font-size:13px; color:var(--cream-dim); margin-top:6px; padding-top:8px; border-top:1px solid var(--line); }
+  .answer-line b{ color:var(--gold); }
+
+  /* Inputs */
+  textarea, input[type=text], input[type=number], input[type=date]{
+    width:100%; background:rgba(243,234,217,0.05); border:1px solid var(--line-strong); border-radius:12px;
+    color:var(--cream); font-family:inherit; font-size:14px; padding:12px 14px; resize:vertical;
+  }
+  textarea::placeholder, input::placeholder{ color:var(--cream-faint); }
+  textarea:focus, input:focus{ outline:none; border-color:var(--gold-dim); }
+
+  .btn{ border-radius:13px; padding:13px 18px; font-size:14px; font-weight:600; transition:transform .15s ease, opacity .15s; }
+  .btn:active{ transform:scale(0.96); }
+  .btn-gold{ background:var(--gold); color:#1a2233; width:100%; box-shadow:0 8px 20px -8px rgba(212,175,106,0.5); }
+  .btn-ghost{ background:rgba(243,234,217,0.04); color:var(--cream-dim); border:1px solid var(--line-strong); width:100%; }
+  .btn-row{ display:flex; gap:10px; margin-top:10px; }
+
+  /* Journal */
+  .j-entry{ display:flex; gap:12px; padding:14px 0; border-top:1px solid var(--line); }
+  .j-entry:first-child{ border-top:none; }
+  .j-avatar{ width:34px; height:34px; border-radius:50%; background:linear-gradient(140deg,var(--gold),var(--coral)); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#1a2233; }
+  .j-meta{ font-size:11px; color:var(--gold-dim); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:3px; font-weight:600; }
+  .j-text{ font-size:13.5px; color:var(--cream); line-height:1.5; }
+  .j-photo{ margin-top:8px; width:100%; border-radius:12px; display:block; max-height:260px; object-fit:cover; }
+  .empty{ color:var(--cream-faint); font-size:13px; text-align:center; padding:20px 0; }
+
+  .fab{ position:fixed; bottom:96px; right:calc(50% - 260px + 20px); width:54px; height:54px; border-radius:50%; background:var(--gold); color:#1a2233; font-size:24px; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 24px -6px rgba(212,175,106,0.6); z-index:20; }
+  @media (max-width:560px){ .fab{ right:20px; } }
+  .fab:active{ transform:scale(0.9); }
+
+  /* Plans */
+  .plan-item{ display:flex; align-items:center; gap:12px; padding:13px 0; border-top:1px solid var(--line); }
+  .plan-item:first-child{ border-top:none; }
+  .check{ width:24px; height:24px; border-radius:8px; border:1.5px solid var(--line-strong); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px; transition:all .2s; }
+  .check.done{ background:var(--gold); border-color:var(--gold); color:#1a2233; }
+  .plan-text{ font-size:13.5px; flex:1; }
+  .plan-by{ font-size:10.5px; color:var(--cream-faint); }
+
+  /* Mood chart legend */
+  .legend-row{ display:flex; gap:16px; font-size:11.5px; color:var(--cream-faint); margin-top:10px; }
+  .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; }
+
+  .emoji-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:4px; }
+  .emoji-pick{ background:rgba(243,234,217,0.04); border:1px solid var(--line); border-radius:12px; padding:12px 0; font-size:22px; text-align:center; transition:transform .15s; }
+  .emoji-pick.active{ background:var(--gold-soft); border-color:var(--gold-dim); transform:scale(1.08); }
+
+  /* Bottom nav */
+  nav.bottom{ position:fixed; bottom:0; left:0; right:0; background:rgba(15,28,46,0.92); backdrop-filter:blur(14px); border-top:1px solid var(--line); display:flex; justify-content:center; z-index:30; padding-bottom:env(safe-area-inset-bottom); }
+  nav.bottom .inner{ max-width:520px; width:100%; display:flex; }
+  nav.bottom button{ flex:1; background:none; padding:12px 4px 10px; display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--cream-faint); font-size:10.5px; }
+  nav.bottom button .ic{ font-size:19px; }
+  nav.bottom button.active{ color:var(--gold); }
+
+  /* Modal (settings) */
+  .modal-overlay{ position:fixed; inset:0; background:rgba(8,13,22,0.72); z-index:50; display:flex; align-items:flex-end; opacity:0; pointer-events:none; transition:opacity .25s; }
+  .modal-overlay.open{ opacity:1; pointer-events:auto; }
+  .modal-sheet{ background:var(--bg2); border-radius:24px 24px 0 0; width:100%; max-width:520px; margin:0 auto; max-height:88vh; overflow-y:auto; padding:22px 20px 34px; transform:translateY(20px); transition:transform .25s; border-top:1px solid var(--line-strong); }
+  .modal-overlay.open .modal-sheet{ transform:translateY(0); }
+  .modal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .modal-head h3{ font-size:17px; }
+  .close-x{ background:rgba(243,234,217,0.06); width:32px; height:32px; border-radius:50%; color:var(--cream-dim); font-size:15px; }
+  .settings-item{ display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-top:1px solid var(--line); font-size:14px; }
+  .settings-item:first-child{ border-top:none; }
+  .settings-item .val{ color:var(--gold); font-size:12.5px; }
+  .sub-panel{ display:none; margin-top:14px; }
+  .sub-panel.open{ display:block; }
+  .special-item{ display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid var(--line); font-size:13px; }
+  .field-row{ display:flex; gap:8px; margin-top:8px; }
+  .field-row input{ flex:1; }
+  .del-x{ background:none; color:var(--cream-faint); font-size:12px; padding:4px 6px; }
+
+  .lt-option{ display:block; width:100%; text-align:left; background:rgba(243,234,217,0.04); border:1px solid var(--line); border-radius:12px; padding:12px 14px; font-size:13px; color:var(--cream); margin-bottom:8px; }
+  .lt-option.picked{ background:var(--gold-soft); border-color:var(--gold-dim); }
+  .lt-progress{ font-size:11.5px; color:var(--cream-faint); margin-bottom:10px; }
+  .result-box{ background:rgba(243,234,217,0.04); border:1px solid var(--line); border-radius:14px; padding:16px; margin-top:10px; }
+  .result-box .lang{ font-family:'Fraunces',serif; font-size:17px; color:var(--gold); margin-top:4px; }
+
+  .toast{ position:fixed; bottom:100px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--gold); color:#1a2233; font-size:13px; font-weight:600; padding:10px 18px; border-radius:30px; opacity:0; transition:all .3s; z-index:60; }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .theme-grid{ display:flex; gap:12px; }
+  .theme-swatch{ flex:1; background:rgba(243,234,217,0.04); border:1.5px solid var(--line); border-radius:14px; padding:14px 8px; text-align:center; transition:all .15s; }
+  .theme-swatch.active{ border-color:var(--gold-dim); background:var(--gold-soft); }
+  .theme-swatch .circle{ width:30px; height:30px; border-radius:50%; margin:0 auto 8px; border:2px solid rgba(255,255,255,0.15); }
+  .theme-swatch .name{ font-size:12px; color:var(--cream-dim); }
+
+  /* Profil avatar */
+  .avatar-btn{ font-family:'Fraunces',serif; font-weight:600; font-size:14px; color:var(--gold); background:var(--gold-soft); border-color:var(--gold-dim); }
+  .avatar-lg{ width:64px; height:64px; border-radius:50%; margin:0 auto; display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:600; font-size:26px; color:var(--gold); background:var(--gold-soft); border:1.5px solid var(--gold-dim); }
+
+  /* Skeleton loading */
+  .skel{ background:linear-gradient(90deg, var(--bg2) 0%, var(--bg3) 50%, var(--bg2) 100%); background-size:200% 100%; animation:skel-shimmer 1.4s ease-in-out infinite; border-radius:14px; }
+  @keyframes skel-shimmer{ 0%{ background-position:200% 0; } 100%{ background-position:-200% 0; } }
+  .skel-hero{ height:180px; border-radius:24px; margin-bottom:16px; }
+  .skel-line{ height:14px; margin-bottom:10px; }
+  .skel-card{ height:90px; margin-bottom:16px; }
+
+  /* Xato holati — qayta urinish */
+  .retry-btn{ margin-top:18px; background:var(--gold-soft); border:1px solid var(--gold-dim); color:var(--gold); padding:10px 22px; border-radius:30px; font-size:13px; font-weight:600; transition:transform .15s ease; }
+  .retry-btn:active{ transform:scale(0.94); }
+</style>
+</head>
+<body>
+
+<canvas id="bgFx"></canvas>
+
+<div id="app">
+  <div id="gate" class="gate" style="justify-content:flex-start; padding-top:70px; width:100%; max-width:520px; margin:0 auto; align-items:stretch; text-align:left;">
+    <div class="skel skel-hero"></div>
+    <div class="skel skel-line" style="width:60%;"></div>
+    <div class="skel skel-line" style="width:85%;"></div>
+    <div class="skel skel-card"></div>
+    <div class="skel skel-card"></div>
+  </div>
+  <div id="main" style="display:none;">
+    <header>
+      <div class="h-title">Sevgi<span>.</span></div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button class="gear-btn avatar-btn" id="profileBtn"></button>
+        <button class="gear-btn" id="settingsBtn"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/2699-fe0f.png" alt="" onerror="this.outerHTML='⚙️'"></button>
+      </div>
+    </header>
+
+    <div id="view-home" class="view"></div>
+    <div id="view-journal" class="view hidden"></div>
+    <div id="view-mood" class="view hidden"></div>
+    <div id="view-plans" class="view hidden"></div>
+    <div id="view-love" class="view hidden"></div>
+
+    <nav class="bottom">
+      <div class="inner">
+        <button data-tab="home" class="active"><span class="ic"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f3e1.png" alt="" onerror="this.outerHTML='🏡'"></span>Bosh</button>
+        <button data-tab="journal"><span class="ic"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f4d4.png" alt="" onerror="this.outerHTML='📔'"></span>Kundalik</button>
+        <button data-tab="mood"><span class="ic"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f60a.png" alt="" onerror="this.outerHTML='😊'"></span>Kayfiyat</button>
+        <button data-tab="plans"><span class="ic"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f4dd.png" alt="" onerror="this.outerHTML='📝'"></span>Rejalar</button>
+        <button data-tab="love"><span class="ic"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f48c.png" alt="" onerror="this.outerHTML='💌'"></span>Sevgi</button>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-sheet">
+    <div class="modal-head"><h3><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/2699-fe0f.png" alt="" onerror="this.outerHTML='⚙️'"> Sozlamalar</h3><button class="close-x" id="closeSettings">✕</button></div>
+
+    <div class="settings-item" id="openAnniversary">
+      <span><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f49e.png" alt="" onerror="this.outerHTML='💞'"> Sevgi boshlangan sana</span>
+      <span class="val" id="annivVal">belgilanmagan</span>
+    </div>
+    <div class="sub-panel" id="panelAnniversary">
+      <input type="date" id="annivInput">
+      <button class="btn btn-gold" style="margin-top:10px;" id="saveAnniv">Saqlash</button>
+    </div>
+
+    <div class="settings-item" id="openSpecial">
+      <span><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f382.png" alt="" onerror="this.outerHTML='🎂'"> Maxsus kunlar</span>
+      <span class="val" id="specialCount">0 ta</span>
+    </div>
+    <div class="sub-panel" id="panelSpecial">
+      <div id="specialList"></div>
+      <div class="field-row">
+        <input type="text" id="specialLabel" placeholder="Nomi (masalan Tug'ilgan kun)">
+      </div>
+      <div class="field-row">
+        <input type="number" id="specialMonth" placeholder="Oy (1-12)" min="1" max="12">
+        <input type="number" id="specialDay" placeholder="Kun (1-31)" min="1" max="31">
+      </div>
+      <button class="btn btn-gold" style="margin-top:10px;" id="addSpecial">Qo'shish</button>
+    </div>
+
+    <div class="settings-item" id="openLoveTest">
+      <span><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f498.png" alt="" onerror="this.outerHTML='💘'"> Sevgi tili testi</span>
+      <span class="val" id="loveTestVal">o'tilmagan</span>
+    </div>
+    <div class="sub-panel" id="panelLoveTest"></div>
+
+    <div class="settings-item" id="openTheme">
+      <span>🎨 Tema</span>
+      <span class="val" id="themeVal">Tungi</span>
+    </div>
+    <div class="sub-panel" id="panelTheme">
+      <div class="theme-grid" id="themeGrid"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="profileModal">
+  <div class="modal-sheet">
+    <div class="modal-head"><h3>👤 Profil</h3><button class="close-x" id="closeProfile">✕</button></div>
+    <div style="text-align:center; padding:6px 0 18px;">
+      <div class="avatar-lg" id="profileAvatar"></div>
+      <div style="font-family:'Fraunces',serif; font-size:19px; margin-top:12px;" id="profileName">—</div>
+      <div style="color:var(--cream-faint); font-size:12.5px; margin-top:2px;" id="profileUsername">—</div>
+    </div>
+    <div class="settings-item"><span>🆔 Telegram ID</span><span class="val" id="profileId">—</span></div>
+    <div class="settings-item"><span>📆 Qo'shilgan sana</span><span class="val" id="profileJoined">—</span></div>
+    <div class="settings-item"><span>📊 Ilova ochilgan</span><span class="val" id="profileOpens">—</span></div>
+    <div class="settings-item"><span>💞 Sherigi</span><span class="val" id="profilePartner">—</span></div>
+    <div class="settings-item" id="profileAdminRow" style="display:none;"><span>👑 Holat</span><span class="val">Admin</span></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+const initData = tg?.initData || "";
+
+// ---------- iOS (Apple) uslubidagi emoji rasmlari ----------
+const EMOJI_MAP = {
+  "🏡":"1f3e1", "📔":"1f4d4", "😊":"1f60a", "📝":"1f4dd", "💌":"1f48c",
+  "⚙️":"2699-fe0f", "💞":"1f49e", "🎂":"1f382", "💘":"1f498", "✍️":"270d-fe0f",
+  "🎉":"1f389", "❓":"2753", "📊":"1f4ca", "💛":"1f49b", "🌿":"1f33f",
+  "😄":"1f604", "🙂":"1f642", "😐":"1f610", "😔":"1f614", "😢":"1f622",
+  "😡":"1f621", "🥱":"1f971", "🥰":"1f970", "⏳":"23f3", "🚫":"1f6ab", "⚠️":"26a0-fe0f",
+  "💗":"1f497",
+};
+function e(emoji, size) {
+  const code = EMOJI_MAP[emoji];
+  const style = size ? ` style="height:${size}px;width:${size}px;"` : "";
+  if (!code) return emoji;
+  return `<img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/${code}.png"${style} alt="" onerror="this.outerHTML='${emoji}'">`;
+}
+
+async function api(path, opts = {}) {
+  const headers = opts.body instanceof FormData ? {} : {"Content-Type": "application/x-www-form-urlencoded"};
+  headers["X-Telegram-Init-Data"] = initData;
+  const res = await fetch(path, { ...opts, headers: { ...headers, ...(opts.headers||{}) } });
+  if (!res.ok) throw new Error(await res.text());
+  return res.status === 204 ? null : res.json();
+}
+function formBody(obj) {
+  return Object.entries(obj).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v ?? "")}`).join("&");
+}
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.innerHTML = msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 1800);
+}
+
+let STATE = null;
+let THEMES_DATA = null;
+let CURRENT_THEME_KEY = "tungi";
+
+function applyTheme(themeObj) {
+  if (!themeObj) return;
+  const root = document.documentElement.style;
+  ["bg","bg2","bg3","cream","cream-dim","cream-faint","gold","gold-soft","gold-dim","coral","coral-soft","line","line-strong"]
+    .forEach(k => { if (themeObj[k]) root.setProperty(`--${k}`, themeObj[k]); });
+  // Telegram'ning o'z header/background rangini ham ilova temasiga moslaymiz
+  try {
+    if (tg && themeObj.bg) {
+      tg.setHeaderColor?.(themeObj.bg);
+      tg.setBackgroundColor?.(themeObj.bg);
+    }
+  } catch (err) { /* eski Telegram versiyalarida bu metodlar bo'lmasligi mumkin */ }
+  initParticles(CURRENT_THEME_KEY, themeObj);
+}
+function haptic(style) {
+  try { tg?.HapticFeedback?.impactOccurred?.(style || "light"); } catch (err) {}
+}
+
+// ---------- Fonda harakatlanuvchi zarrachalar (temaga qarab) ----------
+const PARTICLE_KIND = { tungi: "stars", bahor: "leaves", quyosh: "embers", yorugor: "hearts" };
+let fx = null;
+function initParticles(themeKey, themeObj) {
+  const canvas = document.getElementById("bgFx");
+  const kind = PARTICLE_KIND[themeKey] || "stars";
+  if (fx) { fx.stop(); fx = null; }
+  fx = createParticleField(canvas, kind, themeObj);
+  fx.start();
+}
+function createParticleField(canvas, kind, themeObj) {
+  const ctx = canvas.getContext("2d");
+  let dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let w, h, particles = [], raf = null, running = false;
+
+  const COUNTS = { stars: 70, leaves: 22, embers: 26, hearts: 18 };
+  const COLORS = {
+    stars: [themeObj?.gold || "#d4af6a", "#ffffff"],
+    leaves: [themeObj?.gold || "#9bc27c", themeObj?.coral || "#e8a3b8", "#7fae63"],
+    embers: [themeObj?.gold || "#e8a33d", themeObj?.coral || "#e2735a"],
+    hearts: [themeObj?.coral || "#e0958c", themeObj?.gold || "#d4af6a"],
+  };
+
+  function resize() {
+    w = canvas.width = Math.floor(innerWidth * dpr);
+    h = canvas.height = Math.floor(innerHeight * dpr);
+    canvas.style.width = innerWidth + "px";
+    canvas.style.height = innerHeight + "px";
+  }
+  function rand(a, b) { return a + Math.random() * (b - a); }
+
+  function spawn() {
+    const n = COUNTS[kind] || 30;
+    particles = Array.from({ length: n }, () => makeParticle(true));
+  }
+  function makeParticle(initial) {
+    const colors = COLORS[kind];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    if (kind === "stars") {
+      return { x: rand(0, w), y: rand(0, h), r: rand(0.6, 1.8) * dpr, tw: rand(0, Math.PI * 2), speed: rand(0.15, 0.4) * dpr, color };
+    }
+    if (kind === "leaves") {
+      return { x: rand(0, w), y: initial ? rand(-h, h) : -20 * dpr, size: rand(6, 12) * dpr, rot: rand(0, 360), rotSpeed: rand(-1.2, 1.2), vy: rand(0.35, 0.8) * dpr, sway: rand(0, Math.PI * 2), swaySpeed: rand(0.01, 0.025), color };
+    }
+    if (kind === "embers") {
+      return { x: rand(0, w), y: initial ? rand(0, h) : h + 10 * dpr, r: rand(1, 2.6) * dpr, vy: -rand(0.25, 0.7) * dpr, sway: rand(0, Math.PI * 2), swaySpeed: rand(0.015, 0.03), alpha: rand(0.35, 0.9), color };
+    }
+    // hearts
+    return { x: rand(0, w), y: initial ? rand(0, h) : h + 20 * dpr, size: rand(7, 13) * dpr, vy: -rand(0.2, 0.45) * dpr, sway: rand(0, Math.PI * 2), swaySpeed: rand(0.012, 0.02), alpha: rand(0.35, 0.8), color };
+  }
+
+  function drawHeart(x, y, size, color, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(x, y);
+    ctx.scale(size / 14, size / 14);
+    ctx.beginPath();
+    ctx.moveTo(0, 4);
+    ctx.bezierCurveTo(0, 0, -7, -3, -7, -7);
+    ctx.bezierCurveTo(-7, -11, -1, -11, 0, -5);
+    ctx.bezierCurveTo(1, -11, 7, -11, 7, -7);
+    ctx.bezierCurveTo(7, -3, 0, 0, 0, 4);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.restore();
+  }
+  function drawLeaf(x, y, size, rot, color) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate((rot * Math.PI) / 180);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, size, size * 0.55, 0, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.75;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function tick() {
+    if (!running) return;
+    ctx.clearRect(0, 0, w, h);
+    for (const p of particles) {
+      if (kind === "stars") {
+        p.tw += 0.02;
+        const alpha = 0.35 + Math.abs(Math.sin(p.tw)) * 0.5;
+        p.y += p.speed * 0.05;
+        if (p.y > h) p.y = 0;
+        ctx.beginPath();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = p.color;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (kind === "leaves") {
+        p.sway += p.swaySpeed;
+        p.x += Math.sin(p.sway) * 0.6 * dpr;
+        p.y += p.vy;
+        p.rot += p.rotSpeed;
+        if (p.y > h + 20 * dpr) Object.assign(p, makeParticle(false));
+        drawLeaf(p.x, p.y, p.size, p.rot, p.color);
+      } else if (kind === "embers") {
+        p.sway += p.swaySpeed;
+        p.x += Math.sin(p.sway) * 0.4 * dpr;
+        p.y += p.vy;
+        if (p.y < -10 * dpr) Object.assign(p, makeParticle(false));
+        ctx.beginPath();
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (kind === "hearts") {
+        p.sway += p.swaySpeed;
+        p.x += Math.sin(p.sway) * 0.5 * dpr;
+        p.y += p.vy;
+        if (p.y < -20 * dpr) Object.assign(p, makeParticle(false));
+        drawHeart(p.x, p.y, p.size, p.color, p.alpha);
+      }
+    }
+    ctx.globalAlpha = 1;
+    raf = requestAnimationFrame(tick);
+  }
+
+  function onVisibility() {
+    if (document.hidden) { running = false; if (raf) cancelAnimationFrame(raf); }
+    else if (!running) { running = true; raf = requestAnimationFrame(tick); }
+  }
+  function onResize() { resize(); }
+
+  return {
+    start() {
+      resize(); spawn();
+      running = true;
+      raf = requestAnimationFrame(tick);
+      window.addEventListener("resize", onResize);
+      document.addEventListener("visibilitychange", onVisibility);
+    },
+    stop() {
+      running = false;
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onVisibility);
+    },
+  };
+}
+
+// ---------- Auth / boshlanish ----------
+async function boot() {
+  try {
+    const auth = await api("/api/auth", { method: "POST" });
+    if (auth.status === "pending") {
+      renderGate("⏳", "So'rovingiz ko'rib chiqilmoqda", "Sherigingiz sizni tasdiqlaguncha kuting.");
+      return;
+    }
+    if (auth.status === "denied") {
+      renderGate("🚫", "Kirish rad etilgan", "Bu ilova faqat tasdiqlangan foydalanuvchilar uchun.");
+      return;
+    }
+    const themeRes = await api("/api/settings/theme");
+    THEMES_DATA = themeRes.themes;
+    CURRENT_THEME_KEY = themeRes.theme;
+    // Birinchi marta kirgan foydalanuvchi uchun Telegram'ning o'z rang sxemasiga (dark/light) mos temani tanlaymiz
+    if (themeRes.is_default && tg?.colorScheme === "light" && THEMES_DATA["yorugor"]) {
+      CURRENT_THEME_KEY = "yorugor";
+      api("/api/settings/theme", { method: "POST", body: formBody({ value: "yorugor" }) }).catch(() => {});
+    }
+    applyTheme(THEMES_DATA[CURRENT_THEME_KEY]);
+
+    document.getElementById("gate").style.display = "none";
+    document.getElementById("main").style.display = "block";
+    await loadHome();
+    setupNav();
+    setupSettings();
+    setupProfile();
+    if (STATE?.name) document.getElementById("profileBtn").textContent = STATE.name.trim()[0]?.toUpperCase() || "?";
+  } catch (err) {
+    renderGate("⚠️", "Xatolik yuz berdi", "Iltimos, Telegram ichida qayta oching.", true);
+  }
+}
+function renderGate(emoji, title, text, showRetry) {
+  const gate = document.getElementById("gate");
+  gate.style.justifyContent = "center";
+  gate.style.alignItems = "center";
+  gate.style.textAlign = "center";
+  gate.style.paddingTop = "40px";
+  gate.innerHTML = `<div class="emoji">${e(emoji, 44)}</div><h2>${title}</h2><p>${text}</p>` +
+    (showRetry ? `<button class="retry-btn" id="retryBtn">🔄 Qayta urinish</button>` : ``);
+  if (showRetry) document.getElementById("retryBtn").onclick = () => { haptic(); location.reload(); };
+}
+
+// ---------- Tab navigatsiyasi ----------
+function setupNav() {
+  document.querySelectorAll("nav.bottom button").forEach(btn => {
+    btn.onclick = () => { haptic(); switchTab(btn.dataset.tab); };
+  });
+}
+async function switchTab(tab) {
+  document.querySelectorAll("nav.bottom button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
+  document.getElementById("view-" + tab).classList.remove("hidden");
+  if (tab === "journal") await loadJournal();
+  if (tab === "mood") await loadMood();
+  if (tab === "plans") await loadPlans();
+  if (tab === "love") await loadLove();
+}
+
+// ---------- Bosh sahifa ----------
+function computeTogetherLive(anniversaryISO) {
+  const d0 = new Date(anniversaryISO + "T00:00:00");
+  const now = new Date();
+  let years = now.getFullYear() - d0.getFullYear();
+  let months = now.getMonth() - d0.getMonth();
+  let days = now.getDate() - d0.getDate();
+  let h = now.getHours() - d0.getHours();
+  let m = now.getMinutes() - d0.getMinutes();
+  let s = now.getSeconds() - d0.getSeconds();
+  if (s < 0) { s += 60; m--; }
+  if (m < 0) { m += 60; h--; }
+  if (h < 0) { h += 24; days--; }
+  if (days < 0) { const prevMonth = new Date(now.getFullYear(), now.getMonth(), 0); days += prevMonth.getDate(); months--; }
+  if (months < 0) { months += 12; years--; }
+  return { years, months, days, h, m, s };
+}
+
+let liveTimer = null;
+async function loadHome() {
+  STATE = await api("/api/state");
+  const el = document.getElementById("view-home");
+  el.innerHTML = `
+    <div class="hero">
+      <img class="hero-heart" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f497.png" alt="" onerror="this.outerHTML='💗'">
+      <div class="hero-label">Birgamiz</div>
+      <div class="together-grid" id="togetherMain"></div>
+      <div class="together-secs" id="togetherSecs"><span class="live-dot"></span><span id="togetherSecsText"></span></div>
+      <div class="quote">${STATE.quote}</div>
+    </div>
+
+    ${STATE.upcoming_special ? `<div class="special-strip">${e("🎉",18)} <b>${STATE.upcoming_special.label}</b> — ${STATE.upcoming_special.days_left} kun qoldi</div>` : ""}
+
+    <div class="card">
+      <h3>${e("😊")} Bugungi kayfiyat</h3>
+      <div class="mood-row">
+        <div class="mood-box"><div class="who">Siz</div><div class="emo">${STATE.my_mood ? e(STATE.my_mood, 30) : "—"}</div></div>
+        <div class="mood-box"><div class="who">${STATE.partner_name || "Sherik"}</div><div class="emo">${STATE.partner_mood ? e(STATE.partner_mood, 30) : "—"}</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>${e("❓")} Kun savoli</h3>
+      <div class="q-text">${STATE.question}</div>
+      ${STATE.my_answer ? `
+        <div class="answer-line"><b>Siz:</b> ${escapeHtml(STATE.my_answer)}</div>
+        ${STATE.partner_answer ? `<div class="answer-line"><b>${STATE.partner_name || "Sherik"}:</b> ${escapeHtml(STATE.partner_answer)}</div>` : `<div class="answer-line">${STATE.partner_name || "Sherik"} hali javob bermagan.</div>`}
+      ` : `
+        <textarea id="qAnswerInput" placeholder="Javobingizni yozing..." rows="2"></textarea>
+        <button class="btn btn-gold" style="margin-top:8px;" id="qAnswerBtn">Javob berish</button>
+      `}
+    </div>
+  `;
+
+  if (!STATE.my_answer) {
+    document.getElementById("qAnswerBtn").onclick = async () => {
+      const text = document.getElementById("qAnswerInput").value.trim();
+      if (!text) return;
+      await api("/api/question/answer", { method:"POST", body: formBody({text}) });
+      toast(`Javobingiz saqlandi ${e("💌",16)}`);
+      await loadHome();
+    };
+  }
+
+  if (liveTimer) clearInterval(liveTimer);
+  if (STATE.together) {
+    const anniv = await api("/api/settings/anniversary");
+    const tick = () => {
+      const t = computeTogetherLive(anniv.anniversary);
+      document.getElementById("togetherMain").innerHTML = `
+        <div class="t-unit"><div class="t-num">${t.years}</div><div class="t-label">yil</div></div>
+        <div class="t-sep">·</div>
+        <div class="t-unit"><div class="t-num">${t.months}</div><div class="t-label">oy</div></div>
+        <div class="t-sep">·</div>
+        <div class="t-unit"><div class="t-num">${t.days}</div><div class="t-label">kun</div></div>
+      `;
+      const p2 = n => String(n).padStart(2,"0");
+      document.getElementById("togetherSecsText").textContent = `${p2(t.h)}:${p2(t.m)}:${p2(t.s)} jonli hisoblanmoqda`;
+    };
+    tick();
+    liveTimer = setInterval(tick, 1000);
+  } else {
+    document.getElementById("togetherMain").innerHTML = `<div class="t-unit"><div class="t-label" style="font-size:13px; color:var(--cream-dim); text-transform:none; letter-spacing:0;">Sana belgilanmagan</div></div>`;
+    document.getElementById("togetherSecsText").textContent = "Sozlamalarda qo'shing";
+  }
+}
+
+function escapeHtml(s) {
+  const d = document.createElement("div"); d.innerText = s; return d.innerHTML;
+}
+
+// ---------- Kundalik ----------
+async function loadJournal() {
+  const entries = await api("/api/journal");
+  const el = document.getElementById("view-journal");
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:76px;">
+      <h3>${e("📔")} Xotiralar</h3>
+      <div id="journalList">
+        ${entries.length === 0 ? `<div class="empty">Hali xotira yo'q. (+) tugmasi orqali qo'shing.</div>` :
+          entries.map(entry => `
+            <div class="j-entry">
+              <div class="j-avatar">${(entry.name||"?")[0]}</div>
+              <div style="flex:1;">
+                <div class="j-meta">${entry.name} · ${fmtDate(entry.created_at)}</div>
+                ${entry.text ? `<div class="j-text">${escapeHtml(entry.text)}</div>` : ""}
+                ${entry.photo_url ? `<img class="j-photo" src="${entry.photo_url}">` : ""}
+              </div>
+            </div>
+          `).join("")}
+      </div>
+    </div>
+    <button class="fab" id="journalFab">+</button>
+    <div id="journalFormWrap"></div>
+  `;
+  document.getElementById("journalFab").onclick = openJournalForm;
+}
+function fmtDate(iso) {
+  const d = new Date(iso.replace(" ", "T") + "Z");
+  return d.toLocaleDateString("uz-UZ", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+}
+function openJournalForm() {
+  const wrap = document.getElementById("journalFormWrap");
+  wrap.innerHTML = `
+    <div class="modal-overlay open">
+      <div class="modal-sheet">
+        <div class="modal-head"><h3>${e("✍️")} Yangi xotira</h3><button class="close-x" id="jCancel">✕</button></div>
+        <textarea id="jText" placeholder="Xotirangizni yozing..." rows="4"></textarea>
+        <input type="file" id="jPhoto" accept="image/*" style="margin-top:10px; color:var(--cream-dim); font-size:13px;">
+        <button class="btn btn-gold" style="margin-top:14px;" id="jSave">Saqlash</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("jCancel").onclick = () => wrap.innerHTML = "";
+  document.getElementById("jSave").onclick = async () => {
+    const text = document.getElementById("jText").value.trim();
+    const photoInput = document.getElementById("jPhoto");
+    const fd = new FormData();
+    fd.append("text", text);
+    if (photoInput.files[0]) fd.append("photo", photoInput.files[0]);
+    await api("/api/journal", { method:"POST", body: fd });
+    wrap.innerHTML = "";
+    toast(`Saqlandi ${e("💛",16)}`);
+    await loadJournal();
+  };
+}
+
+// ---------- Kayfiyat ----------
+async function loadMood() {
+  const data = await api("/api/moods");
+  const el = document.getElementById("view-mood");
+  el.innerHTML = `
+    <div class="card">
+      <h3>${e("😊")} Bugungi kayfiyatingiz</h3>
+      <div class="emoji-grid" id="emojiGrid">
+        ${STATE.mood_emojis.map(em => `<button class="emoji-pick" data-e="${em}">${e(em,26)}</button>`).join("")}
+      </div>
+    </div>
+    <div class="card">
+      <h3>${e("📊")} So'nggi 30 kun</h3>
+      <canvas id="moodChart" height="180"></canvas>
+      <div class="legend-row">
+        <span><span class="dot" style="background:var(--gold);"></span>Siz</span>
+        ${data.partner_name ? `<span><span class="dot" style="background:var(--coral);"></span>${data.partner_name}</span>` : ""}
+      </div>
+    </div>
+  `;
+  document.querySelectorAll("#emojiGrid .emoji-pick").forEach(btn => {
+    btn.onclick = async () => {
+      document.querySelectorAll("#emojiGrid .emoji-pick").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      await api("/api/mood", { method:"POST", body: formBody({emoji: btn.dataset.e, note:""}) });
+      toast(`Kayfiyat saqlandi ${e("💛",16)}`);
+    };
+  });
+
+  const emojiScore = em => ["😢","😡","😔","🥱","😐","🙂","😄","🥰"].indexOf(em);
+  const labels = [...new Set([...data.mine, ...data.partner].map(m=>m.mood_date))].sort();
+  const mineMap = Object.fromEntries(data.mine.map(m=>[m.mood_date, emojiScore(m.emoji)]));
+  const partnerMap = Object.fromEntries(data.partner.map(m=>[m.mood_date, emojiScore(m.emoji)]));
+
+  new Chart(document.getElementById("moodChart"), {
+    type: "line",
+    data: {
+      labels: labels.map(d => d.slice(5)),
+      datasets: [
+        { label:"Siz", data: labels.map(d => mineMap[d] ?? null), borderColor:"#d4af6a", backgroundColor:"rgba(212,175,106,0.15)", tension:0.35, spanGaps:true, pointRadius:2 },
+        { label:"Sherik", data: labels.map(d => partnerMap[d] ?? null), borderColor:"#e0958c", backgroundColor:"rgba(224,149,140,0.15)", tension:0.35, spanGaps:true, pointRadius:2 },
+      ]
+    },
+    options: {
+      plugins:{ legend:{ display:false } },
+      scales:{
+        y:{ min:0, max:7, ticks:{ color:"#6f6a5f", stepSize:1 }, grid:{ color:"rgba(243,234,217,0.06)" } },
+        x:{ ticks:{ color:"#6f6a5f" }, grid:{ display:false } }
+      }
+    }
+  });
+}
+
+// ---------- Rejalar ----------
+async function loadPlans() {
+  const plans = await api("/api/plans");
+  const el = document.getElementById("view-plans");
+  el.innerHTML = `
+    <div class="card">
+      <h3>${e("📝")} Ochiq rejalar</h3>
+      <div id="plansList">
+        ${plans.length === 0 ? `<div class="empty">Hozircha rejalar yo'q.</div>` :
+          plans.map(p => `
+            <div class="plan-item">
+              <button class="check" data-id="${p.id}">✓</button>
+              <div style="flex:1;">
+                <div class="plan-text">${escapeHtml(p.text)}</div>
+                <div class="plan-by">taklif: ${p.name}</div>
+              </div>
+            </div>
+          `).join("")}
+      </div>
+      <textarea id="planInput" placeholder="Yangi reja yoki date-idea..." rows="2" style="margin-top:14px;"></textarea>
+      <button class="btn btn-gold" style="margin-top:8px;" id="planAdd">Qo'shish</button>
+    </div>
+  `;
+  document.querySelectorAll(".check").forEach(btn => {
+    btn.onclick = async () => {
+      btn.classList.add("done");
+      await api(`/api/plans/${btn.dataset.id}/done`, { method:"POST" });
+      setTimeout(loadPlans, 400);
+    };
+  });
+  document.getElementById("planAdd").onclick = async () => {
+    const text = document.getElementById("planInput").value.trim();
+    if (!text) return;
+    await api("/api/plans", { method:"POST", body: formBody({text}) });
+    toast(`Reja qo'shildi ${e("🌿",16)}`);
+    await loadPlans();
+  };
+}
+
+// ---------- Sevgi burchagi ----------
+async function loadLove() {
+  const stats = await api("/api/stats");
+  const el = document.getElementById("view-love");
+  el.innerHTML = `
+    <div class="card">
+      <h3>${e("💌")} Sevgi xati yuborish</h3>
+      <textarea id="loveText" placeholder="Sherigingizga xabar yozing..." rows="3"></textarea>
+      <button class="btn btn-gold" style="margin-top:10px;" id="loveSend">Yuborish</button>
+    </div>
+    <div class="card">
+      <h3>${e("📊")} Statistika</h3>
+      <div class="mood-row">
+        <div class="mood-box"><div class="who">Birga</div><div class="emo" style="font-size:20px;">${stats.together ? stats.together.total_days : "—"} kun</div></div>
+        <div class="mood-box"><div class="who">Xotiralar</div><div class="emo" style="font-size:20px;">${stats.journal_count}</div></div>
+      </div>
+    </div>
+  `;
+  document.getElementById("loveSend").onclick = async () => {
+    const text = document.getElementById("loveText").value.trim();
+    if (!text) return;
+    try {
+      await api("/api/love_note", { method:"POST", body: formBody({text}) });
+      document.getElementById("loveText").value = "";
+      toast(`Yuborildi ${e("💛",16)}`);
+    } catch(err) { toast("Xatolik yuz berdi"); }
+  };
+}
+
+// ---------- Sozlamalar ----------
+function setupSettings() {
+  const modal = document.getElementById("settingsModal");
+  document.getElementById("settingsBtn").onclick = async () => {
+    modal.classList.add("open");
+    await refreshSettingsSummary();
+  };
+  document.getElementById("closeSettings").onclick = () => modal.classList.remove("open");
+
+  document.getElementById("openAnniversary").onclick = () => toggle("panelAnniversary");
+  document.getElementById("openSpecial").onclick = async () => { toggle("panelSpecial"); await loadSpecialList(); };
+  document.getElementById("openLoveTest").onclick = async () => { toggle("panelLoveTest"); await loadLoveTest(); };
+  document.getElementById("openTheme").onclick = () => { toggle("panelTheme"); renderThemeGrid(); };
+
+  document.getElementById("saveAnniv").onclick = async () => {
+    const v = document.getElementById("annivInput").value;
+    if (!v) return;
+    await api("/api/settings/anniversary", { method:"POST", body: formBody({value:v}) });
+    toast(`Saqlandi ${e("💞",16)}`);
+    await refreshSettingsSummary();
+    await loadHome();
+  };
+
+  document.getElementById("addSpecial").onclick = async () => {
+    const label = document.getElementById("specialLabel").value.trim();
+    const month = document.getElementById("specialMonth").value;
+    const day = document.getElementById("specialDay").value;
+    if (!label || !month || !day) return;
+    await api("/api/settings/special_dates", { method:"POST", body: formBody({label, month, day}) });
+    document.getElementById("specialLabel").value = "";
+    document.getElementById("specialMonth").value = "";
+    document.getElementById("specialDay").value = "";
+    toast(`Qo'shildi ${e("🎉",16)}`);
+    await loadSpecialList();
+    await refreshSettingsSummary();
+    await loadHome();
+  };
+}
+// ---------- Profil ----------
+function setupProfile() {
+  const modal = document.getElementById("profileModal");
+  document.getElementById("profileBtn").onclick = async () => {
+    haptic();
+    modal.classList.add("open");
+    await loadProfile();
+  };
+  document.getElementById("closeProfile").onclick = () => modal.classList.remove("open");
+}
+async function loadProfile() {
+  try {
+    const p = await api("/api/profile");
+    const initial = (p.name || "?").trim()[0]?.toUpperCase() || "?";
+    document.getElementById("profileBtn").textContent = initial;
+    document.getElementById("profileAvatar").textContent = initial;
+    document.getElementById("profileName").textContent = p.name;
+    document.getElementById("profileUsername").textContent = p.username ? "@" + p.username : "username yo'q";
+    document.getElementById("profileId").textContent = p.user_id;
+    document.getElementById("profileJoined").textContent = fmtDate(p.joined_at);
+    document.getElementById("profileOpens").textContent = `${p.open_count}x`;
+    document.getElementById("profilePartner").textContent = p.partner_name || "hali qo'shilmagan";
+    document.getElementById("profileAdminRow").style.display = p.is_admin ? "flex" : "none";
+  } catch (err) {
+    toast("Profilni yuklab bo'lmadi");
+  }
+}
+function toggle(id) {
+  document.querySelectorAll(".sub-panel").forEach(p => { if (p.id !== id) p.classList.remove("open"); });
+  document.getElementById(id).classList.toggle("open");
+}
+async function refreshSettingsSummary() {
+  const anniv = await api("/api/settings/anniversary");
+  document.getElementById("annivVal").textContent = anniv.anniversary || "belgilanmagan";
+  document.getElementById("annivInput").value = anniv.anniversary || "";
+  const specials = await api("/api/settings/special_dates");
+  document.getElementById("specialCount").textContent = specials.length + " ta";
+  const lt = await api("/api/settings/love_test/result");
+  document.getElementById("loveTestVal").textContent = lt.mine_label || "o'tilmagan";
+  document.getElementById("themeVal").textContent = THEMES_DATA[CURRENT_THEME_KEY]?.label || "Tungi";
+}
+
+function renderThemeGrid() {
+  const grid = document.getElementById("themeGrid");
+  grid.innerHTML = Object.entries(THEMES_DATA).map(([key, t]) => `
+    <button class="theme-swatch ${key === CURRENT_THEME_KEY ? "active" : ""}" data-key="${key}">
+      <div class="circle" style="background:${t.swatch};"></div>
+      <div class="name">${t.label}</div>
+    </button>
+  `).join("");
+  grid.querySelectorAll(".theme-swatch").forEach(btn => {
+    btn.onclick = async () => {
+      const key = btn.dataset.key;
+      CURRENT_THEME_KEY = key;
+      applyTheme(THEMES_DATA[key]);
+      await api("/api/settings/theme", { method:"POST", body: formBody({value:key}) });
+      renderThemeGrid();
+      document.getElementById("themeVal").textContent = THEMES_DATA[key].label;
+      toast(`Tema o'zgartirildi ${e("🎉",16)}`);
+    };
+  });
+}
+async function loadSpecialList() {
+  const specials = await api("/api/settings/special_dates");
+  document.getElementById("specialList").innerHTML = specials.map(s => `
+    <div class="special-item">
+      <span>${s.label} — ${s.day}.${String(s.month).padStart(2,"0")}</span>
+      <button class="del-x" data-id="${s.id}">✕</button>
+    </div>
+  `).join("") || `<div class="empty">Hali qo'shilmagan.</div>`;
+  document.querySelectorAll("#specialList .del-x").forEach(btn => {
+    btn.onclick = async () => {
+      await api(`/api/settings/special_dates/${btn.dataset.id}`, { method:"DELETE" });
+      await loadSpecialList();
+      await refreshSettingsSummary();
+      await loadHome();
+    };
+  });
+}
+
+let ltAnswers = [];
+async function loadLoveTest() {
+  const panel = document.getElementById("panelLoveTest");
+  const result = await api("/api/settings/love_test/result");
+  const { questions, languages } = await api("/api/settings/love_test/questions");
+  ltAnswers = [];
+
+  function renderQ(i) {
+    if (i >= questions.length) {
+      const answersStr = ltAnswers.join(",");
+      api("/api/settings/love_test/submit", { method:"POST", body: formBody({answers: answersStr}) }).then(res => {
+        panel.innerHTML = `<div class="result-box">Sizning sevgi tilingiz:<div class="lang">${res.top_label}</div></div>`;
+        refreshSettingsSummary();
+      });
+      return;
+    }
+    const q = questions[i];
+    panel.innerHTML = `
+      <div class="lt-progress">${i+1} / ${questions.length}</div>
+      <div class="q-text" style="margin-bottom:10px;">${q.q}</div>
+      ${q.options.map(o => `<button class="lt-option" data-k="${o.key}">${o.text}</button>`).join("")}
+    `;
+    panel.querySelectorAll(".lt-option").forEach(btn => {
+      btn.onclick = () => { ltAnswers.push(btn.dataset.k); renderQ(i+1); };
+    });
+  }
+
+  if (result.mine) {
+    panel.innerHTML = `
+      <div class="result-box">Sizning sevgi tilingiz:<div class="lang">${result.mine_label}</div></div>
+      ${result.partner ? `<div class="result-box">${result.partner_name} tili:<div class="lang">${result.partner_label}</div></div>` : ""}
+      <button class="btn btn-ghost" style="margin-top:10px;" id="ltRetake">Qayta topshirish</button>
+    `;
+    document.getElementById("ltRetake").onclick = () => renderQ(0);
+  } else {
+    renderQ(0);
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
