@@ -1,6 +1,6 @@
 # Sevgi — Telegram Mini App 💞
 
-Faqat siz va sevgilingiz uchun: kirish tasdiqlash, jonli "birga" hisoblagichi, kundalik, kayfiyat grafigi, rejalar, kun savoli, sevgi xati, sevgi tili testi va maxsus kunlar eslatmasi.
+Ko'p foydalanuvchili (multi-user): istalgan Telegram foydalanuvchisi kirib, taklif kodi orqali sherigi bilan bog'lanadi. Har bir juftlikning ma'lumotlari (xotiralar, kayfiyat, rejalar, sevgi xatlari, maxsus kunlar) bir-biridan to'liq ajratilgan. Ma'lumotlar PostgreSQL'da (Supabase), media fayllar Supabase Storage'da — Render qayta deploy qilinsa ham hech narsa yo'qolmaydi.
 
 ## Loyiha tuzilishi
 
@@ -8,12 +8,13 @@ Faqat siz va sevgilingiz uchun: kirish tasdiqlash, jonli "birga" hisoblagichi, k
 love-app/
 ├── app/
 │   ├── main.py          # FastAPI backend (API + statik frontend + bot birga ishlaydi)
-│   ├── db.py             # SQLite yordamchi funksiyalar
+│   ├── db.py             # PostgreSQL (Supabase) yordamchi funksiyalar
+│   ├── storage.py         # Supabase Storage'ga media yuklash
 │   ├── auth.py            # Telegram initData tekshiruvi
-│   ├── telegram_bot.py    # Bot handlerlar (ro'yxatdan o'tish, tasdiqlash)
+│   ├── telegram_bot.py    # Bot handlerlar (pairing, admin panel)
 │   ├── content.py         # Savollar, iqtiboslar, sevgi tili testi savollari
 │   └── static/
-│       └── index.html    # Mini App interfeysi (HTML/CSS/JS, Chart.js)
+│       └── index.html    # Mini App interfeysi (HTML/CSS/JS)
 ├── requirements.txt
 ├── render.yaml
 └── .gitignore
@@ -24,7 +25,15 @@ love-app/
 1. [@BotFather](https://t.me/BotFather) → `/newbot` → nom bering → **token** oling.
 2. [@userinfobot](https://t.me/userinfobot) orqali o'z Telegram **ID**ingizni bilib oling.
 
-## 2-qadam: GitHub'ga yuklash
+## 2-qadam: Supabase (baza + media xotira) sozlash
+
+1. [supabase.com](https://supabase.com) → bepul account → **New Project** yarating.
+2. **Project Settings → Database → Connection string (URI)** dan `DATABASE_URL` oling.
+3. **Project Settings → General** dan `Project URL`ni oling (`SUPABASE_URL`, `https://xxxxx.supabase.co`).
+4. **Project Settings → API Keys** dan **Secret key**ni oling (`SUPABASE_SERVICE_KEY`).
+5. **Storage** bo'limida `media` nomli **public** bucket yarating.
+
+## 3-qadam: GitHub'ga yuklash
 
 ```bash
 cd love-app
@@ -37,7 +46,7 @@ git push -u origin main
 ```
 (GitHub'da avval bo'sh repository yarating: github.com/new)
 
-## 3-qadam: Render'da joylashtirish
+## 4-qadam: Render'da joylashtirish
 
 1. [render.com](https://render.com) ga GitHub orqali bepul ro'yxatdan o'ting (karta shart emas).
 2. **New +** → **Web Service** → GitHub repongizni tanlang.
@@ -47,38 +56,34 @@ git push -u origin main
    - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 4. **Environment Variables** bo'limida qo'shing:
    - `BOT_TOKEN` — BotFather'dan olgan tokeningiz
-   - `ADMIN_ID` — sizning Telegram ID'ingiz
+   - `ADMIN_ID` — sizning Telegram ID'ingiz (avtomatik bosh admin bo'lasiz)
    - `APP_URL` — **hozircha bo'sh qoldiring**, keyingi qadamda to'ldiramiz
+   - `DATABASE_URL` — Supabase connection string
+   - `SUPABASE_URL` — Supabase Project URL
+   - `SUPABASE_SERVICE_KEY` — Supabase Secret key
 5. **Create Web Service** bosing. Birinchi deploy 2-3 daqiqa vaqt oladi.
 
-## 4-qadam: APP_URL ni to'ldirish
+## 5-qadam: APP_URL ni to'ldirish
 
 1. Deploy tugagach, Render sizga manzil beradi, masalan: `https://sevgi-mini-app.onrender.com`
 2. Shu manzilni nusxalab, Render dashboard → **Environment** → `APP_URL` qiymatiga qo'ying.
 3. Saqlang — Render avtomatik qayta ishga tushiradi (redeploy).
 
-## 5-qadam: Botni sinash
+## 6-qadam: Botni sinash va sherigingizni bog'lash
 
 1. Telegram'da botingizni toping, `/start` bosing.
-2. Siz `ADMIN_ID` bo'lganingiz uchun avtomatik tasdiqlanasiz — "💞 Ochish" tugmasi chiqadi, bosing.
-3. Mini App ochiladi.
+2. "💌 Yangi juftlik yaratish" tugmasini bosing — sizga taklif kodi beriladi.
+3. Bu kodni sherigingizga yuboring. U bot bilan `/start` qilib, "🔑 Taklif kodini kiritish"ni bosib, kodni yuborishi bilan siz bog'lanasiz.
+4. Endi ikkalangiz ham "💞 Ochish" tugmasi orqali Mini App'ga kira olasiz.
 
-## 6-qadam: Sevgilingizni qo'shish
-
-1. Bot username'ini (`@sizning_botingiz`) unga yuboring.
-2. U `/start` bossa, sizga (adminga) tasdiqlash so'rovi keladi — "✅ Tasdiqlash" bosing.
-3. Endi u ham "💞 Ochish" orqali kira oladi.
+Xohlagan boshqa Telegram foydalanuvchisi ham botga kirib, o'z alohida juftligini yaratishi mumkin — ularning ma'lumotlari sizniki bilan aralashmaydi.
 
 ## ⚠️ Muhim eslatmalar
 
-**Bepul tarifning ikkita cheklovi bor:**
+**Bepul tarifning bitta cheklovi bor:**
 
-1. **Uyquga ketish** — 15 daqiqa faollik bo'lmasa, server uxlaydi. Keyingi ochilishda 30-60 soniya kutish kerak bo'ladi. Ma'lumot yo'qolmaydi, faqat server "uyg'onishi" kerak.
-
-2. **Ma'lumotlar bazasi (SQLite) doimiy emas** — Render bepul tarifida fayl tizimi har safar siz kodni qayta deploy qilganingizda (yangi `git push`) tozalanadi. Ya'ni:
-   - Oddiy ishlatish (kirish, kayfiyat belgilash, kundalik yozish) — ma'lumot saqlanaveradi, hech narsa yo'qolmaydi.
-   - Lekin agar kelajakda kodni yangilab qayta yuklasangiz — **baza tozalanadi**, hamma yozuvlar o'chadi.
-   - Bunga yechim: Render'ning **Persistent Disk** funksiyasi (oyiga ~$1 dan boshlanadi) yoki tashqi bepul baza (masalan [Turso](https://turso.tech) yoki [Supabase](https://supabase.com) bepul tarifi). Agar ma'lumotlaringiz uzoq muddat qadrli bo'lsa, buni keyinroq qo'shishni tavsiya qilaman — aytsangiz shu qismni ham sozlab beraman.
+- **Uyquga ketish** — Render'ning bepul web-service tarifida 15 daqiqa faollik bo'lmasa, server uxlaydi. Keyingi ochilishda 30-60 soniya kutish kerak bo'ladi. Ma'lumot yo'qolmaydi, faqat server "uyg'onishi" kerak.
+- Ma'lumotlar bazasi va media fayllar endi Supabase'da (PostgreSQL + Storage) saqlanadi — Render qayta deploy qilinganda, server yangilanganda ham hech narsa yo'qolmaydi. Supabase bepul tarifi 500MB baza + 1GB fayl xotirasini beradi; 7 kun faollik bo'lmasa loyiha "uxlab qoladi" (Supabase dashboard'da bir marta kirib uyg'otish kifoya).
 
 ## Funksiyalar
 
@@ -106,6 +111,9 @@ pip install -r requirements.txt
 export BOT_TOKEN="tokeningiz"
 export ADMIN_ID="idingiz"
 export APP_URL="https://placeholder.ngrok.io"   # mini app ochish uchun HTTPS manzil kerak
+export DATABASE_URL="postgresql://..."
+export SUPABASE_URL="https://xxxxx.supabase.co"
+export SUPABASE_SERVICE_KEY="sb_secret_..."
 uvicorn app.main:app --reload
 ```
 
