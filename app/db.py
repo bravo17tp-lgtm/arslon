@@ -283,6 +283,37 @@ def set_relationship_started_at(relationship_id: int, value: str):
         conn.execute("UPDATE relationships SET started_at=%s WHERE id=%s", (value, relationship_id))
 
 
+def leave_relationship(user_id: int):
+    """Foydalanuvchini (va agar bor bo'lsa, sherigini ham) joriy juftlikdan ajratadi.
+    Ma'lumotlar o'chirilmaydi — faqat ikkalasi ham unga kira olmay qoladi.
+    Sherik bor bo'lsa uning user_id'sini qaytaradi (xabar yuborish uchun)."""
+    with get_conn() as conn:
+        user = conn.execute("SELECT relationship_id FROM users WHERE user_id=%s", (user_id,)).fetchone()
+        if not user or not user["relationship_id"]:
+            return None
+        rel_id = user["relationship_id"]
+        rel = conn.execute("SELECT * FROM relationships WHERE id=%s", (rel_id,)).fetchone()
+        partner_id = None
+        if rel:
+            partner_id = rel["user_b_id"] if rel["user_a_id"] == user_id else rel["user_a_id"]
+        conn.execute("UPDATE users SET relationship_id=NULL, updated_at=now() WHERE user_id=%s", (user_id,))
+        if partner_id:
+            conn.execute("UPDATE users SET relationship_id=NULL, updated_at=now() WHERE user_id=%s", (partner_id,))
+        conn.execute("UPDATE relationships SET user_a_id=NULL, user_b_id=NULL WHERE id=%s", (rel_id,))
+        return partner_id
+
+
+def reset_relationship_data(relationship_id: int):
+    """Juftlikning barcha umumiy ma'lumotlarini (xotira, kayfiyat, reja, maxsus kunlar) o'chiradi.
+    Bog'lanish (relationship) o'zi saqlanib qoladi."""
+    with get_conn() as conn:
+        conn.execute("DELETE FROM journal WHERE relationship_id=%s", (relationship_id,))
+        conn.execute("DELETE FROM moods WHERE relationship_id=%s", (relationship_id,))
+        conn.execute("DELETE FROM plans WHERE relationship_id=%s", (relationship_id,))
+        conn.execute("DELETE FROM special_dates WHERE relationship_id=%s", (relationship_id,))
+        conn.execute("UPDATE relationships SET started_at=NULL WHERE id=%s", (relationship_id,))
+
+
 # ============================================================
 # Sozlamalar (kalit-qiymat, umumiy)
 # ============================================================

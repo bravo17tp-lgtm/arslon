@@ -109,14 +109,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if partner:
             await update.message.reply_text(
                 f"Xush kelibsiz, {user['name']}! 🌷 Siz {partner['name']} bilan bog'langansiz.",
-                reply_markup=open_app_kb(),
+                reply_markup=paired_menu_kb(),
             )
         else:
             rel = db.get_relationship(user["relationship_id"])
             await update.message.reply_text(
                 f"Sizning taklif kodingiz: `{rel['invite_code']}`\n\n"
-                "Sherigingiz botga kirib, shu kodni yuborishi bilan bog'lanasiz.",
+                "Sherigingiz botga kirib, shu kodni yuborishi bilan bog'lanasiz.\n\n"
+                "Sherigingizni kutayotganda ham ilovani ochib ko'rishingiz mumkin 👇",
                 parse_mode=ParseMode.MARKDOWN,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("💞 Ochish", web_app=WebAppInfo(url=APP_URL))],
+                    [InlineKeyboardButton("🔄 Bekor qilib, qaytadan boshlash", callback_data="pr:unlink_confirm")],
+                ]),
             )
         return
 
@@ -124,6 +129,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Xush kelibsiz, {user['name']}! 💞\n\nSevgi ilovasidan foydalanish uchun avval sherigingiz bilan bog'lanishingiz kerak.",
         reply_markup=pairing_kb(),
     )
+
+
+def paired_menu_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("💞 Ochish", web_app=WebAppInfo(url=APP_URL))],
+        [InlineKeyboardButton("🗑 Ma'lumotlarni tozalash", callback_data="pr:reset_confirm")],
+        [InlineKeyboardButton("🔄 Sherikni almashtirish", callback_data="pr:unlink_confirm")],
+    ])
 
 
 def pairing_kb() -> InlineKeyboardMarkup:
@@ -137,24 +150,211 @@ async def pairing_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = update.effective_user.id
-    action = query.data.split(":")[1]
+    parts = query.data.split(":")
+    action = parts[1]
 
     if action == "create":
         rel = db.create_relationship(user_id)
         await query.edit_message_text(
             f"✅ Juftlik yaratildi!\n\nTaklif kodingiz: `{rel['invite_code']}`\n\n"
             "Bu kodni sherigingizga yuboring. U botga kirib, \"🔑 Taklif kodini kiritish\" tugmasini bosib, "
-            "shu kodni kiritishi bilan bog'lanasiz.",
+            "shu kodni kiritishi bilan bog'lanasiz.\n\n"
+            "Sherigingizni kutayotganda ham ilovani ochib ko'rishingiz mumkin 👇",
             parse_mode=ParseMode.MARKDOWN,
         )
+        await context.bot.send_message(query.message.chat_id, "💞 Ilovani ochish:", reply_markup=open_app_kb())
+
     elif action == "join":
         context.user_data["awaiting"] = "join_code"
-        await query.edit_message_text("🔑 Sherigingiz bergan 6 xonali kodni yuboring.\n\n/cancel — bekor qilish")
+        await query.edit_message_text(
+            "🔑 Sherigingiz bergan 6 xonali kodni yuboring.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Bekor qilish", callback_data="pr:cancel")]]),
+        )
+
+    elif action == "cancel":
+        context.user_data.pop("awaiting", None)
+        user = db.get_user(user_id)
+        if user and user["relationship_id"]:
+            await start_again(update, context, edit=True)
+        else:
+            await query.edit_message_text("Sherigingiz bilan bog'lanish uchun birini tanlang:", reply_markup=pairing_kb())
+
+    # ---------- Ma'lumotlarni tozalash: 2 marta o'z-tasdiq + sherik roziligi ----------
+
+    elif action == "reset_confirm":
+        await query.edit_message_text(
+            "⚠️ *Diqqat!* Bu amal barcha xotiralar, kayfiyat tarixi, rejalar va maxsus kunlaringizni "
+            "butunlay o'chiradi. Sherikligingiz saqlanib qoladi — faqat ma'lumotlar tozalanadi.\n\n"
+            "Davom etasizmi?",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("Davom etish", callback_data="pr:reset_confirm2"),
+                InlineKeyboardButton("❌ Bekor qilish", callback_data="pr:cancel"),
+            ]]),
+        )
+
+    elif action == "reset_confirm2":
+        await query.edit_message_text(
+            "❗️ *So'nggi ogohlantirish.* Bu amalni ortga qaytarib bo'lmaydi — barcha ma'lumotlar butunlay yo'qoladi.\n\n"
+            "Ishonchingiz komilmi?",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("✅ Ha, albatta", callback_data="pr:reset_ask"),
+                InlineKeyboardButton("❌ Yo'q, bekor qilish", callback_data="pr:cancel"),
+            ]]),
+        )
+
+    elif action == "reset_ask":
+        user = db.get_user(user_id)
+        if not (user and user["relationship_id"]):
+            await query.edit_message_text("Hozircha aktiv juftlik topilmadi.")
+            return
+        partner = db.partner_of(user_id)
+        if not partner:
+            db.reset_relationship_data(user["relationship_id"])
+            await query.edit_message_text("🗑 Ma'lumotlar tozalandi. Yangidan boshlashingiz mumkin!", reply_markup=open_app_kb())
+            return
+        await query.edit_message_text("⏳ So'rov sherigingizga yuborildi. U ham tasdiqlagach, ma'lumotlar tozalanadi.")
+        try:
+            await context.bot.send_message(
+                partner["user_id"],
+                f"⚠️ *{update.effective_user.first_name}* barcha umumiy ma'lumotlaringizni "
+                "(xotiralar, kayfiyat, rejalar, maxsus kunlar) butunlay tozalashni so'ramoqda.\n\n"
+                "Bunga roziimisiz?",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("✅ Roziman", callback_data=f"pr:reset_approve:{user_id}"),
+                    InlineKeyboardButton("❌ Rozi emasman", callback_data=f"pr:reset_deny:{user_id}"),
+                ]]),
+            )
+        except Exception:
+            await query.edit_message_text("Sherigingizga xabar yuborib bo'lmadi. Keyinroq qayta urinib ko'ring.")
+
+    elif action == "reset_approve":
+        initiator_id = int(parts[2])
+        partner = db.partner_of(user_id)
+        if not partner or partner["user_id"] != initiator_id:
+            await query.edit_message_text("Bu so'rov endi amal qilmaydi.")
+            return
+        user = db.get_user(user_id)
+        db.reset_relationship_data(user["relationship_id"])
+        await query.edit_message_text("🗑 Ma'lumotlar tozalandi.", reply_markup=open_app_kb())
+        try:
+            await context.bot.send_message(
+                initiator_id, f"✅ {update.effective_user.first_name} rozi bo'ldi. Ma'lumotlar tozalandi.",
+                reply_markup=open_app_kb(),
+            )
+        except Exception:
+            pass
+
+    elif action == "reset_deny":
+        initiator_id = int(parts[2])
+        await query.edit_message_text("Bekor qilindi — ma'lumotlar tozalanmadi.")
+        try:
+            await context.bot.send_message(initiator_id, "❌ Sherigingiz ma'lumotlarni tozalashga rozi bo'lmadi.")
+        except Exception:
+            pass
+
+    # ---------- Sherikni almashtirish: 2 marta o'z-tasdiq + sherik roziligi ----------
+
+    elif action == "unlink_confirm":
+        await query.edit_message_text(
+            "⚠️ *Diqqat!* Bu amal joriy bog'lanishni butunlay bekor qiladi. Agar sherigingiz allaqachon "
+            "bog'langan bo'lsa, u ham ajraladi va ikkalangiz alohida yangi sherik bilan bog'lanishingiz "
+            "kerak bo'ladi. Umumiy ma'lumotlar o'chirilmaydi, lekin unga hech kim kira olmay qoladi.\n\n"
+            "Davom etasizmi?",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("Davom etish", callback_data="pr:unlink_confirm2"),
+                InlineKeyboardButton("❌ Bekor qilish", callback_data="pr:cancel"),
+            ]]),
+        )
+
+    elif action == "unlink_confirm2":
+        await query.edit_message_text(
+            "❗️ *So'nggi ogohlantirish.* Aloqa uzilgach, qayta bog'lanish uchun yangi taklif kodi kerak bo'ladi.\n\n"
+            "Ishonchingiz komilmi?",
+            parse_mode=ParseMode.MARKDOWN,
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("✅ Ha, albatta", callback_data="pr:unlink_ask"),
+                InlineKeyboardButton("❌ Yo'q, bekor qilish", callback_data="pr:cancel"),
+            ]]),
+        )
+
+    elif action == "unlink_ask":
+        partner = db.partner_of(user_id)
+        if not partner:
+            db.leave_relationship(user_id)
+            await query.edit_message_text("🔄 Bekor qilindi. Qaytadan tanlang:", reply_markup=pairing_kb())
+            return
+        await query.edit_message_text("⏳ So'rov sherigingizga yuborildi. U ham tasdiqlagach, aloqa uziladi.")
+        try:
+            await context.bot.send_message(
+                partner["user_id"],
+                f"⚠️ *{update.effective_user.first_name}* siz bilan aloqani uzishni so'ramoqda "
+                "(ma'lumotlar o'chirilmaydi, faqat aloqa uziladi).\n\nBunga roziimisiz?",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton("✅ Roziman", callback_data=f"pr:unlink_approve:{user_id}"),
+                    InlineKeyboardButton("❌ Rozi emasman", callback_data=f"pr:unlink_deny:{user_id}"),
+                ]]),
+            )
+        except Exception:
+            await query.edit_message_text("Sherigingizga xabar yuborib bo'lmadi. Keyinroq qayta urinib ko'ring.")
+
+    elif action == "unlink_approve":
+        initiator_id = int(parts[2])
+        partner = db.partner_of(user_id)
+        if not partner or partner["user_id"] != initiator_id:
+            await query.edit_message_text("Bu so'rov endi amal qilmaydi.")
+            return
+        db.leave_relationship(user_id)
+        await query.edit_message_text(
+            "🔄 Aloqa uzildi. Endi yangi sherik bilan bog'lanishingiz mumkin:", reply_markup=pairing_kb()
+        )
+        try:
+            await context.bot.send_message(
+                initiator_id,
+                "✅ Sherigingiz rozi bo'ldi. Aloqa uzildi. Endi yangi sherik bilan bog'lanishingiz mumkin:",
+                reply_markup=pairing_kb(),
+            )
+        except Exception:
+            pass
+
+    elif action == "unlink_deny":
+        initiator_id = int(parts[2])
+        await query.edit_message_text("Bekor qilindi — aloqa uzilmadi.")
+        try:
+            await context.bot.send_message(initiator_id, "❌ Sherigingiz aloqani uzishga rozi bo'lmadi.")
+        except Exception:
+            pass
+
+
+async def start_again(update: Update, context: ContextTypes.DEFAULT_TYPE, edit: bool = False):
+    """start() bilan bir xil xabarni chiqaradi, lekin callback ichidan chaqirilganda xabarni tahrirlaydi."""
+    user_id = update.effective_user.id
+    user = db.get_user(user_id)
+    partner = db.partner_of(user_id)
+    text = f"Xush kelibsiz, {user['name']}! 🌷"
+    if partner:
+        text += f" Siz {partner['name']} bilan bog'langansiz."
+        kb = paired_menu_kb()
+    else:
+        text += "\n\nSevgi ilovasidan foydalanish uchun avval sherigingiz bilan bog'lanishingiz kerak."
+        kb = pairing_kb()
+    if edit:
+        await update.callback_query.edit_message_text(text, reply_markup=kb)
+    else:
+        await update.message.reply_text(text, reply_markup=kb)
 
 
 # ============================================================
 # Foydalanuvchi amallari: approve / deny / ban / unban
 # ============================================================
+
+def back_kb(callback_data: str = "am:menu", label: str = "⬅️ Orqaga") -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[InlineKeyboardButton(label, callback_data=callback_data)]])
+
 
 async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -166,7 +366,7 @@ async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = int(uid)
     target = db.get_user(uid)
     if not target:
-        await query.edit_message_text("Foydalanuvchi topilmadi.")
+        await query.edit_message_text("Foydalanuvchi topilmadi.", reply_markup=back_kb("am:users"))
         return
 
     admin_id = update.effective_user.id
@@ -175,7 +375,7 @@ async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if action == "ban":
         db.set_user_status(uid, "banned")
         db.log_admin_action(admin_id, admin_name, "ban", uid)
-        await query.edit_message_text(f"⛔ {target['name']} ban qilindi.")
+        await query.edit_message_text(f"⛔ {target['name']} ban qilindi.", reply_markup=back_kb("am:users"))
         try:
             await context.bot.send_message(uid, "🚫 Siz ushbu botdan foydalanishingiz bloklandi.")
         except Exception:
@@ -183,7 +383,7 @@ async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif action == "unban":
         db.unban_user(uid)
         db.log_admin_action(admin_id, admin_name, "unban", uid)
-        await query.edit_message_text(f"♻️ {target['name']} qayta tasdiqlandi.")
+        await query.edit_message_text(f"♻️ {target['name']} qayta tasdiqlandi.", reply_markup=back_kb("am:users"))
         try:
             await context.bot.send_message(uid, "✅ Siz qayta tasdiqlandingiz!", reply_markup=open_app_kb())
         except Exception:
@@ -194,7 +394,7 @@ async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         db.set_admin(uid, False)
         db.log_admin_action(admin_id, admin_name, "demote_admin", uid)
-        await query.edit_message_text(f"👤 {target['name']} admin huquqidan mahrum qilindi.")
+        await query.edit_message_text(f"👤 {target['name']} admin huquqidan mahrum qilindi.", reply_markup=back_kb("am:admins"))
 
 
 # ============================================================
@@ -231,6 +431,7 @@ async def admin_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     action = parts[1]
 
     if action == "menu":
+        context.user_data.pop("awaiting", None)
         await query.edit_message_text("👨‍💼 *ADMIN PANEL*", parse_mode=ParseMode.MARKDOWN, reply_markup=main_menu_kb())
 
     elif action == "users":
@@ -323,18 +524,29 @@ async def admin_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("Faqat bosh admin yangi admin qo'sha oladi.", show_alert=True)
             return
         context.user_data["awaiting"] = "addadmin"
-        await query.edit_message_text("➕ Yangi admin qilmoqchi bo'lgan foydalanuvchi ID raqamini yuboring.\n\n/cancel — bekor qilish")
+        await query.edit_message_text(
+            "➕ Yangi admin qilmoqchi bo'lgan foydalanuvchi ID raqamini yuboring.",
+            reply_markup=back_kb("am:cancel_awaiting:admins", "⬅️ Bekor qilish"),
+        )
 
     elif action == "search":
         context.user_data["awaiting"] = "search"
-        await query.edit_message_text("🔍 Qidirmoqchi bo'lgan ism, username yoki ID ni yuboring.\n\n/cancel — bekor qilish")
+        await query.edit_message_text(
+            "🔍 Qidirmoqchi bo'lgan ism, username yoki ID ni yuboring.",
+            reply_markup=back_kb("am:cancel_awaiting:menu", "⬅️ Bekor qilish"),
+        )
 
     elif action == "broadcast":
         context.user_data["awaiting"] = "broadcast"
         await query.edit_message_text(
             "📢 Barcha tasdiqlangan foydalanuvchilarga yubormoqchi bo'lgan xabaringizni yuboring "
-            "(matn, rasm, video yoki hujjat bo'lishi mumkin).\n\n/cancel — bekor qilish"
+            "(matn, rasm, video yoki hujjat bo'lishi mumkin).",
+            reply_markup=back_kb("am:cancel_awaiting:menu", "⬅️ Bekor qilish"),
         )
+
+    elif action == "cancel_awaiting":
+        context.user_data.pop("awaiting", None)
+        await query.edit_message_text("👨‍💼 *ADMIN PANEL*", parse_mode=ParseMode.MARKDOWN, reply_markup=main_menu_kb())
 
     elif action == "export":
         await send_csv_export(update, context)
@@ -372,7 +584,13 @@ async def admin_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.effective_user.id
         rel = db.join_relationship(user_id, code)
         if not rel:
-            await update.message.reply_text("❗️ Kod noto'g'ri yoki band. Qayta urinish uchun /start bosing.")
+            await update.message.reply_text(
+                "❗️ Kod noto'g'ri yoki band. Qaytadan urinib ko'ring:",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🔑 Qayta urinish", callback_data="pr:join")],
+                    [InlineKeyboardButton("⬅️ Orqaga", callback_data="pr:cancel")],
+                ]),
+            )
             return
         partner = db.partner_of(user_id)
         await update.message.reply_text(
@@ -398,7 +616,7 @@ async def admin_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query_text = (update.message.text or "").strip()
         rows = db.search_user(query_text)
         if not rows:
-            await update.message.reply_text("Hech narsa topilmadi.")
+            await update.message.reply_text("Hech narsa topilmadi.", reply_markup=back_kb("am:menu"))
             return
         await update.message.reply_text(f"🔍 Natijalar — {len(rows)} ta:", reply_markup=user_list_kb(rows[:30], "am:menu"))
         return
@@ -407,16 +625,18 @@ async def admin_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.pop("awaiting", None)
         raw = (update.message.text or "").strip()
         if not raw.isdigit():
-            await update.message.reply_text("❗️ Faqat raqamli ID yuboring. Qayta urinish uchun /admin ga o'ting.")
+            await update.message.reply_text("❗️ Faqat raqamli ID yuboring. Qayta urinish uchun /admin ga o'ting.",
+                                             reply_markup=back_kb("am:menu"))
             return
         uid = int(raw)
         target = db.get_user(uid)
         if not target:
-            await update.message.reply_text("Bu ID bazada topilmadi (foydalanuvchi botdan /start bosgan bo'lishi kerak).")
+            await update.message.reply_text("Bu ID bazada topilmadi (foydalanuvchi botdan /start bosgan bo'lishi kerak).",
+                                             reply_markup=back_kb("am:menu"))
             return
         db.set_admin(uid, True)
         db.log_admin_action(update.effective_user.id, admin_name_of(update), "add_admin", uid)
-        await update.message.reply_text(f"👑 {target['name']} endi admin.")
+        await update.message.reply_text(f"👑 {target['name']} endi admin.", reply_markup=back_kb("am:admins"))
         try:
             await context.bot.send_message(uid, "👑 Sizga admin huquqi berildi!")
         except Exception:
@@ -442,7 +662,7 @@ async def run_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
             failed += 1
             logger.warning("Broadcast failed for %s: %s", uid, e)
     db.log_admin_action(update.effective_user.id, admin_name_of(update), "broadcast", detail=f"sent={sent} failed={failed}")
-    await update.message.reply_text(f"📢 Yuborildi: {sent} ta ✅  |  Xato: {failed} ta ❌")
+    await update.message.reply_text(f"📢 Yuborildi: {sent} ta ✅  |  Xato: {failed} ta ❌", reply_markup=back_kb("am:menu"))
 
 
 # ============================================================
