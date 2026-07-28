@@ -76,6 +76,7 @@ def init_db():
             name TEXT NOT NULL,
             username TEXT,
             language_code TEXT,
+            ui_lang TEXT DEFAULT 'uz',
             status TEXT DEFAULT 'approved',
             is_admin BOOLEAN DEFAULT FALSE,
             relationship_id INTEGER REFERENCES relationships(id),
@@ -152,6 +153,9 @@ def init_db():
             created_at TIMESTAMPTZ DEFAULT now()
         )""")
 
+        # Eski bazalarda ustun bo'lmasa qo'shib qo'yamiz (xavfsiz migratsiya)
+        conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS ui_lang TEXT DEFAULT 'uz'")
+
         # Indexlar
         conn.execute("CREATE INDEX IF NOT EXISTS idx_users_relationship ON users(relationship_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_journal_rel ON journal(relationship_id)")
@@ -194,6 +198,11 @@ def touch_user_activity(user_id: int, username: str = None):
                 "updated_at=now() WHERE user_id=%s",
                 (user_id,),
             )
+
+
+def set_user_lang(user_id: int, lang: str):
+    with get_conn() as conn:
+        conn.execute("UPDATE users SET ui_lang=%s, updated_at=now() WHERE user_id=%s", (lang, user_id))
 
 
 def set_admin(user_id: int, is_admin: bool):
