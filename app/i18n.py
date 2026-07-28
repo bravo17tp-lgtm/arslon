@@ -83,6 +83,16 @@ T = {
         "en": "❗️ The code is invalid or already taken. Please try again:",
     },
     "btn_retry": {"uz": "🔑 Qayta urinish", "ru": "🔑 Попробовать снова", "en": "🔑 Try again"},
+    "own_code_error": {
+        "uz": "❗️ Bu — sizning shaxsiy taklif kodingiz. Uni faqat sherigingiz kiritishi kerak, o'zingiz "
+              "undan foydalana olmaysiz.\n\nBu kodni sherigingizga yuboring, yoki agar sherigingiz sizga "
+              "kod bergan bo'lsa, o'sha kodni kiriting:",
+        "ru": "❗️ Это ваш собственный код приглашения. Его должен ввести партнёр — вы не можете "
+              "использовать его сами.\n\nОтправьте этот код партнёру, либо введите код, который дал "
+              "вам партнёр:",
+        "en": "❗️ This is your own invite code. Only your partner should enter it — you can't use it "
+              "yourself.\n\nSend this code to your partner, or enter the code your partner gave you:",
+    },
     "joined_success": {
         "uz": "💞 Tabriklaymiz! Siz {partner} bilan bog'landingiz!",
         "ru": "💞 Поздравляем! Вы связаны с {partner}!",

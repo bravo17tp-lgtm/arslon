@@ -39,10 +39,11 @@ APP_URL = os.environ.get("APP_URL", "")
 # Yordamchi funksiyalar
 # ============================================================
 
-def is_admin(user_id: int) -> bool:
+def is_admin(user_id: int, user=None) -> bool:
     if user_id == ADMIN_ID:
         return True
-    user = db.get_user(user_id)
+    if user is None:
+        user = db.get_user(user_id)
     return bool(user and user["is_admin"])
 
 
@@ -137,7 +138,7 @@ def settings_kb(user, lang: str) -> InlineKeyboardMarkup:
             rows.append([InlineKeyboardButton(t("btn_cancel_invite", lang), callback_data="st:unlink_confirm")])
     else:
         rows.append([InlineKeyboardButton(t("btn_connect_partner", lang), callback_data="nav:addpartner")])
-    if user and is_admin(user["user_id"]):
+    if user and is_admin(user["user_id"], user):
         rows.append([InlineKeyboardButton(t("btn_admin_panel", lang), callback_data="nav:adminpanel")])
     rows.append([InlineKeyboardButton(t("btn_back", lang), callback_data="nav:main")])
     return InlineKeyboardMarkup(rows)
@@ -174,13 +175,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     context.user_data.pop("awaiting", None)
-    await render_main_menu(update, context, edit=False)
+    await render_main_menu(update, context, edit=False, user=user)
 
 
-async def render_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, edit: bool = False):
+async def render_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, edit: bool = False, user=None):
     """Asosiy menyuni holatga qarab chiqaradi: yangi / sherik kutmoqda / bog'langan."""
     user_id = update.effective_user.id
-    user = db.get_user(user_id)
+    if user is None:
+        user = db.get_user(user_id)
     lang = get_lang(user)
 
     if user["relationship_id"]:
@@ -218,7 +220,7 @@ async def nav_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if target == "main":
         context.user_data.pop("awaiting", None)
-        await render_main_menu(update, context, edit=True)
+        await render_main_menu(update, context, edit=True, user=user)
 
     elif target == "addpartner":
         context.user_data.pop("awaiting", None)
@@ -690,6 +692,15 @@ async def admin_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.effective_user.id
         lang = get_lang(db.get_user(user_id))
         rel = db.join_relationship(user_id, code)
+        if rel == "own_code":
+            await update.message.reply_text(
+                t("own_code_error", lang),
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton(t("btn_retry", lang), callback_data="ap:enter_code")],
+                    [InlineKeyboardButton(t("btn_back", lang), callback_data="ap:cancel")],
+                ]),
+            )
+            return
         if not rel:
             await update.message.reply_text(
                 t("code_invalid", lang),

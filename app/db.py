@@ -253,14 +253,18 @@ def create_relationship(owner_id: int):
 
 
 def join_relationship(user_id: int, invite_code: str):
-    """Kod bo'yicha juftlikka qo'shiladi. Muvaffaqiyatli bo'lsa relationship qaytaradi, aks holda None."""
+    """Kod bo'yicha juftlikka qo'shiladi.
+    Muvaffaqiyatli bo'lsa relationship qaytaradi, kod noto'g'ri/band bo'lsa None,
+    foydalanuvchi o'zining hali hech kim qo'shilmagan shaxsiy kodini kiritsa "own_code" qaytaradi."""
     invite_code = (invite_code or "").strip().upper()
     with get_conn() as conn:
         rel = conn.execute("SELECT * FROM relationships WHERE invite_code=%s", (invite_code,)).fetchone()
         if not rel:
             return None
+        if rel["user_a_id"] == user_id and rel["user_b_id"] is None:
+            return "own_code"  # hali hech kim qo'shilmagan — bu o'zining kodi
         if rel["user_a_id"] == user_id or rel["user_b_id"] == user_id:
-            return rel  # allaqachon shu juftlikda
+            return rel  # allaqachon shu juftlikda (sherik bilan)
         if rel["user_b_id"] is not None:
             return None  # joy band
         conn.execute("UPDATE relationships SET user_b_id=%s WHERE id=%s", (user_id, rel["id"]))
@@ -274,17 +278,19 @@ def get_relationship(relationship_id: int):
 
 
 def partner_of(user_id: int):
+    """Hamkorni BITTA so'rov bilan topadi (tezlik uchun 3 ta so'rov o'rniga 1 ta)."""
     with get_conn() as conn:
-        user = conn.execute("SELECT relationship_id FROM users WHERE user_id=%s", (user_id,)).fetchone()
-        if not user or not user["relationship_id"]:
-            return None
-        rel = conn.execute("SELECT * FROM relationships WHERE id=%s", (user["relationship_id"],)).fetchone()
-        if not rel:
-            return None
-        partner_id = rel["user_b_id"] if rel["user_a_id"] == user_id else rel["user_a_id"]
-        if not partner_id:
-            return None
-        return conn.execute("SELECT * FROM users WHERE user_id=%s", (partner_id,)).fetchone()
+        return conn.execute(
+            """
+            SELECT pu.* FROM users u
+            JOIN relationships r ON r.id = u.relationship_id
+            JOIN users pu ON pu.user_id = (CASE WHEN r.user_a_id = u.user_id THEN r.user_b_id ELSE r.user_a_id END)
+            WHERE u.user_id = %s
+            """,
+            (user_id,),
+        ).fetchone()
+
+
 
 
 def set_relationship_started_at(relationship_id: int, value: str):
