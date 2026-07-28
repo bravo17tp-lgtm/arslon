@@ -1,23 +1,25 @@
 """
 Sevgi Mini App — FastAPI backend.
 Bitta jarayonda: REST API + statik frontend + Telegram bot (polling) birga ishlaydi.
-Bu Render'ning bepul "Web Service" tarifida bitta port bilan ishlashga imkon beradi.
+Ko'p foydalanuvchili (multi-user) arxitektura: har bir Telegram foydalanuvchisi
+mustaqil ro'yxatdan o'tadi va taklif kodi orqali sherigi bilan bog'lanadi.
 """
 
+import calendar
 import logging
 import os
-import uuid
 from datetime import date, datetime, time as dtime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Header, HTTPException, Request, UploadFile, Form, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import db
 from . import auth
+from . import storage
 from . content import MOOD_EMOJIS, QUESTIONS, QUOTES, LOVE_LANGUAGES, LOVE_TEST_QUESTIONS, THEMES
 from . telegram_bot import build_bot_app
 from . jobs import daily_reminder_job, weekly_summary_job
@@ -26,9 +28,6 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("sevgi.main")
 
 BASE_DIR = Path(__file__).parent
-UPLOAD_DIR = BASE_DIR / "data" / "uploads"
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
 ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))
 TASHKENT = ZoneInfo("Asia/Tashkent")
 
@@ -78,10 +77,19 @@ def current_user(x_telegram_init_data: str = Header(None)):
 
 
 def require_approved_user(x_telegram_init_data: str = Header(None)):
+    """Foydalanuvchi platformaga kira olishini tekshiradi (ban qilinmagan bo'lishi kerak)."""
     tg_user = current_user(x_telegram_init_data)
     user = db.get_user(tg_user["id"])
-    if not user or user["status"] != "approved":
-        raise HTTPException(403, "Tasdiqlanmagan foydalanuvchi")
+    if not user or user["status"] == "banned":
+        raise HTTPException(403, "Kirish rad etildi")
+    return user
+
+
+def require_paired_user(x_telegram_init_data: str = Header(None)):
+    """Sheriklar bog'langan (juftlik hosil bo'lgan) foydalanuvchini talab qiladi."""
+    user = require_approved_user(x_telegram_init_data)
+    if not user["relationship_id"]:
+        raise HTTPException(409, "Hali sherigingiz bilan bog'lanmagansiz")
     return user
 
 
@@ -99,27 +107,59 @@ async def api_auth(x_telegram_init_data: str = Header(None)):
     user = db.get_user(user_id)
 
     if user is None:
-        if user_id == ADMIN_ID:
-            db.create_user(user_id, name, status="approved", is_admin=True)
-            return {"status": "approved", "name": name}
-        db.create_user(user_id, name, status="pending")
-        if ADMIN_ID:
-            try:
-                from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-                await bot_app.bot.send_message(
-                    ADMIN_ID,
-                    f"🔔 Yangi kirish so'rovi: {name} (id: {user_id})",
-                    reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"approve_{user_id}"),
-                        InlineKeyboardButton("❌ Rad etish", callback_data=f"deny_{user_id}"),
-                    ]]),
-                )
-            except Exception:
-                pass
-        return {"status": "pending", "name": name}
+        is_admin = user_id == ADMIN_ID
+        db.create_user(user_id, name, username=tg_user.get("username"), status="approved", is_admin=is_admin)
+        user = db.get_user(user_id)
+
+    if user["status"] == "banned":
+        return {"status": "banned", "name": user["name"]}
 
     db.touch_user_activity(user_id, tg_user.get("username"))
-    return {"status": user["status"], "name": user["name"]}
+    paired = bool(user["relationship_id"])
+    return {"status": "approved", "name": user["name"], "paired": paired}
+
+
+# ---------- Juftlik bog'lash (pairing) ----------
+
+@app.get("/api/pair/status")
+def pair_status(x_telegram_init_data: str = Header(None)):
+    user = require_approved_user(x_telegram_init_data)
+    if not user["relationship_id"]:
+        return {"paired": False}
+    partner = db.partner_of(user["user_id"])
+    rel = db.get_relationship(user["relationship_id"])
+    return {
+        "paired": bool(partner),
+        "invite_code": rel["invite_code"] if rel and not partner else None,
+        "partner_name": partner["name"] if partner else None,
+    }
+
+
+@app.post("/api/pair/create")
+def pair_create(x_telegram_init_data: str = Header(None)):
+    user = require_approved_user(x_telegram_init_data)
+    if user["relationship_id"]:
+        rel = db.get_relationship(user["relationship_id"])
+        return {"invite_code": rel["invite_code"]}
+    rel = db.create_relationship(user["user_id"])
+    return {"invite_code": rel["invite_code"]}
+
+
+@app.post("/api/pair/join")
+async def pair_join(code: str = Form(...), x_telegram_init_data: str = Header(None)):
+    user = require_approved_user(x_telegram_init_data)
+    if user["relationship_id"]:
+        raise HTTPException(400, "Siz allaqachon sherigingiz bilan bog'langansiz")
+    rel = db.join_relationship(user["user_id"], code)
+    if not rel:
+        raise HTTPException(400, "Kod noto'g'ri yoki band")
+    partner = db.partner_of(user["user_id"])
+    if partner:
+        try:
+            await bot_app.bot.send_message(partner["user_id"], f"💞 {user['name']} taklifingizni qabul qildi! Endi bog'langansiz.")
+        except Exception:
+            pass
+    return {"ok": True, "partner_name": partner["name"] if partner else None}
 
 
 # ---------- Bosh sahifa holati ----------
@@ -127,7 +167,10 @@ async def api_auth(x_telegram_init_data: str = Header(None)):
 def compute_days_together(anniversary: str):
     if not anniversary:
         return None
-    d0 = date.fromisoformat(anniversary)
+    if isinstance(anniversary, date):
+        d0 = anniversary
+    else:
+        d0 = date.fromisoformat(str(anniversary))
     d1 = date.today()
     years = d1.year - d0.year
     months = d1.month - d0.month
@@ -136,7 +179,6 @@ def compute_days_together(anniversary: str):
         months -= 1
         prev_month = d1.month - 1 or 12
         prev_year = d1.year if d1.month > 1 else d1.year - 1
-        import calendar
         days += calendar.monthrange(prev_year, prev_month)[1]
     if months < 0:
         years -= 1
@@ -164,9 +206,10 @@ def next_special_date(rows):
 
 @app.get("/api/state")
 def api_state(x_telegram_init_data: str = Header(None)):
-    user = require_approved_user(x_telegram_init_data)
+    user = require_paired_user(x_telegram_init_data)
+    rel_id = user["relationship_id"]
     partner = db.partner_of(user["user_id"])
-    anniversary = db.get_setting("anniversary")
+    rel = db.get_relationship(rel_id)
 
     q_idx = date.today().timetuple().tm_yday % len(QUESTIONS)
     question = QUESTIONS[q_idx]
@@ -176,13 +219,13 @@ def api_state(x_telegram_init_data: str = Header(None)):
     my_mood = db.get_mood(user["user_id"], today())
     partner_mood = db.get_mood(partner["user_id"], today()) if partner else None
 
-    specials = db.list_special_dates()
+    specials = db.list_special_dates(rel_id)
     upcoming = next_special_date(specials)
 
     return {
         "name": user["name"],
         "partner_name": partner["name"] if partner else None,
-        "together": compute_days_together(anniversary),
+        "together": compute_days_together(rel["started_at"] if rel else None),
         "quote": QUOTES[date.today().toordinal() % len(QUOTES)],
         "question": question,
         "my_answer": my_answer["answer"] if my_answer else None,
@@ -198,8 +241,8 @@ def api_state(x_telegram_init_data: str = Header(None)):
 
 @app.post("/api/mood")
 async def api_set_mood(emoji: str = Form(...), note: str = Form(""), x_telegram_init_data: str = Header(None)):
-    user = require_approved_user(x_telegram_init_data)
-    db.set_mood(user["user_id"], today(), emoji, note or None)
+    user = require_paired_user(x_telegram_init_data)
+    db.set_mood(user["relationship_id"], user["user_id"], today(), emoji, note or None)
     partner = db.partner_of(user["user_id"])
     if partner:
         try:
@@ -211,7 +254,7 @@ async def api_set_mood(emoji: str = Form(...), note: str = Form(""), x_telegram_
 
 @app.get("/api/moods")
 def api_moods(x_telegram_init_data: str = Header(None)):
-    user = require_approved_user(x_telegram_init_data)
+    user = require_paired_user(x_telegram_init_data)
     partner = db.partner_of(user["user_id"])
     return {
         "mine": [dict(r) for r in db.mood_history(user["user_id"], 30)],
@@ -228,16 +271,12 @@ async def api_add_journal(
     photo: UploadFile = File(None),
     x_telegram_init_data: str = Header(None),
 ):
-    user = require_approved_user(x_telegram_init_data)
-    photo_path = None
+    user = require_paired_user(x_telegram_init_data)
+    photo_url = None
     if photo is not None and photo.filename:
-        ext = Path(photo.filename).suffix or ".jpg"
-        fname = f"{uuid.uuid4().hex}{ext}"
-        dest = UPLOAD_DIR / fname
         content = await photo.read()
-        dest.write_bytes(content)
-        photo_path = fname
-    db.add_journal(user["user_id"], text, photo_path)
+        photo_url = await storage.upload_bytes(content, photo.filename, photo.content_type)
+    db.add_journal(user["relationship_id"], user["user_id"], text, photo_url)
     partner = db.partner_of(user["user_id"])
     if partner:
         try:
@@ -249,34 +288,26 @@ async def api_add_journal(
 
 @app.get("/api/journal")
 def api_journal(x_telegram_init_data: str = Header(None)):
-    require_approved_user(x_telegram_init_data)
-    entries = db.recent_journal(30)
+    user = require_paired_user(x_telegram_init_data)
+    entries = db.recent_journal(user["relationship_id"], 30)
     return [
         {
             "id": e["id"],
             "name": e["name"],
             "text": e["text"],
-            "photo_url": f"/uploads/{e['photo_path']}" if e["photo_path"] else None,
+            "photo_url": e["photo_path"],  # Supabase Storage'dagi to'liq ochiq URL
             "created_at": e["created_at"],
         }
         for e in entries
     ]
 
 
-@app.get("/uploads/{fname}")
-def get_upload(fname: str):
-    p = UPLOAD_DIR / fname
-    if not p.exists():
-        raise HTTPException(404)
-    return FileResponse(p)
-
-
 # ---------- Rejalar ----------
 
 @app.post("/api/plans")
 async def api_add_plan(text: str = Form(...), x_telegram_init_data: str = Header(None)):
-    user = require_approved_user(x_telegram_init_data)
-    db.add_plan(user["user_id"], text)
+    user = require_paired_user(x_telegram_init_data)
+    db.add_plan(user["relationship_id"], user["user_id"], text)
     partner = db.partner_of(user["user_id"])
     if partner:
         try:
@@ -288,13 +319,13 @@ async def api_add_plan(text: str = Form(...), x_telegram_init_data: str = Header
 
 @app.get("/api/plans")
 def api_plans(x_telegram_init_data: str = Header(None)):
-    require_approved_user(x_telegram_init_data)
-    return [dict(p) for p in db.list_plans(only_open=True)]
+    user = require_paired_user(x_telegram_init_data)
+    return [dict(p) for p in db.list_plans(user["relationship_id"], only_open=True)]
 
 
 @app.post("/api/plans/{plan_id}/done")
 def api_plan_done(plan_id: int, x_telegram_init_data: str = Header(None)):
-    require_approved_user(x_telegram_init_data)
+    require_paired_user(x_telegram_init_data)
     db.complete_plan(plan_id)
     return {"ok": True}
 
@@ -303,7 +334,7 @@ def api_plan_done(plan_id: int, x_telegram_init_data: str = Header(None)):
 
 @app.post("/api/question/answer")
 async def api_answer_question(text: str = Form(...), x_telegram_init_data: str = Header(None)):
-    user = require_approved_user(x_telegram_init_data)
+    user = require_paired_user(x_telegram_init_data)
     q_idx = date.today().timetuple().tm_yday % len(QUESTIONS)
     db.save_answer(user["user_id"], today(), QUESTIONS[q_idx], text)
     partner = db.partner_of(user["user_id"])
@@ -319,7 +350,7 @@ async def api_answer_question(text: str = Form(...), x_telegram_init_data: str =
 
 @app.post("/api/love_note")
 async def api_love_note(text: str = Form(...), x_telegram_init_data: str = Header(None)):
-    user = require_approved_user(x_telegram_init_data)
+    user = require_paired_user(x_telegram_init_data)
     partner = db.partner_of(user["user_id"])
     if not partner:
         raise HTTPException(400, "Sherigingiz hali qo'shilmagan")
@@ -351,11 +382,11 @@ def api_profile(x_telegram_init_data: str = Header(None)):
 
 @app.get("/api/stats")
 def api_stats(x_telegram_init_data: str = Header(None)):
-    require_approved_user(x_telegram_init_data)
-    anniversary = db.get_setting("anniversary")
+    user = require_paired_user(x_telegram_init_data)
+    rel = db.get_relationship(user["relationship_id"])
     return {
-        "together": compute_days_together(anniversary),
-        "journal_count": db.journal_count(),
+        "together": compute_days_together(rel["started_at"] if rel else None),
+        "journal_count": db.journal_count(user["relationship_id"]),
     }
 
 
@@ -363,18 +394,20 @@ def api_stats(x_telegram_init_data: str = Header(None)):
 
 @app.get("/api/settings/anniversary")
 def get_anniversary(x_telegram_init_data: str = Header(None)):
-    require_approved_user(x_telegram_init_data)
-    return {"anniversary": db.get_setting("anniversary")}
+    user = require_paired_user(x_telegram_init_data)
+    rel = db.get_relationship(user["relationship_id"])
+    started = rel["started_at"] if rel else None
+    return {"anniversary": started.isoformat() if started else None}
 
 
 @app.post("/api/settings/anniversary")
 def set_anniversary(value: str = Form(...), x_telegram_init_data: str = Header(None)):
-    require_approved_user(x_telegram_init_data)
+    user = require_paired_user(x_telegram_init_data)
     try:
         date.fromisoformat(value)
     except ValueError:
         raise HTTPException(400, "Noto'g'ri sana formati")
-    db.set_setting("anniversary", value)
+    db.set_relationship_started_at(user["relationship_id"], value)
     return {"ok": True}
 
 
@@ -382,8 +415,8 @@ def set_anniversary(value: str = Form(...), x_telegram_init_data: str = Header(N
 
 @app.get("/api/settings/special_dates")
 def get_special_dates(x_telegram_init_data: str = Header(None)):
-    require_approved_user(x_telegram_init_data)
-    return [dict(r) for r in db.list_special_dates()]
+    user = require_paired_user(x_telegram_init_data)
+    return [dict(r) for r in db.list_special_dates(user["relationship_id"])]
 
 
 @app.post("/api/settings/special_dates")
@@ -394,14 +427,14 @@ def add_special_date(
     year: int = Form(None),
     x_telegram_init_data: str = Header(None),
 ):
-    user = require_approved_user(x_telegram_init_data)
-    db.add_special_date(user["user_id"], label, month, day, year)
+    user = require_paired_user(x_telegram_init_data)
+    db.add_special_date(user["relationship_id"], user["user_id"], label, month, day, year)
     return {"ok": True}
 
 
 @app.delete("/api/settings/special_dates/{date_id}")
 def remove_special_date(date_id: int, x_telegram_init_data: str = Header(None)):
-    require_approved_user(x_telegram_init_data)
+    require_paired_user(x_telegram_init_data)
     db.delete_special_date(date_id)
     return {"ok": True}
 

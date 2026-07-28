@@ -503,12 +503,16 @@ function createParticleField(canvas, kind, themeObj) {
 async function boot() {
   try {
     const auth = await api("/api/auth", { method: "POST" });
-    if (auth.status === "pending") {
-      renderGate("⏳", "So'rovingiz ko'rib chiqilmoqda", "Sherigingiz sizni tasdiqlaguncha kuting.");
+    if (auth.status === "banned") {
+      renderGate("🚫", "Kirish bloklangan", "Siz ushbu ilovadan foydalana olmaysiz.");
       return;
     }
-    if (auth.status === "denied") {
-      renderGate("🚫", "Kirish rad etilgan", "Bu ilova faqat tasdiqlangan foydalanuvchilar uchun.");
+    if (!auth.paired) {
+      renderGate(
+        "💌", "Sherigingiz bilan bog'laning",
+        "Ilovadan foydalanish uchun avval Telegram botdagi /start buyrug'i orqali sherigingiz bilan bog'lanishingiz kerak. Bog'langaningizdan so'ng shu sahifani qayta oching.",
+        true,
+      );
       return;
     }
     const themeRes = await api("/api/settings/theme");

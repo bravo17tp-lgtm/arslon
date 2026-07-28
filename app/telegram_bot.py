@@ -66,10 +66,6 @@ STATUS_LABELS = {
 def user_row_kb(u) -> InlineKeyboardMarkup:
     uid = u["user_id"]
     rows = []
-    if u["status"] != "approved":
-        rows.append([InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"ua:approve:{uid}")])
-    if u["status"] != "denied":
-        rows.append([InlineKeyboardButton("❌ Rad etish", callback_data=f"ua:deny:{uid}")])
     if u["status"] == "banned":
         rows.append([InlineKeyboardButton("♻️ Unban", callback_data=f"ua:unban:{uid}")])
     else:
@@ -99,74 +95,61 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = db.get_user(user_id)
 
     if user is None:
-        if user_id == ADMIN_ID:
-            db.create_user(user_id, update.effective_user.first_name, username=username, status="approved", is_admin=True)
-            await update.message.reply_text(
-                "Xush kelibsiz, admin! Ilovani pastdagi tugma orqali oching. 💞\n\n"
-                "Admin panelni ochish uchun /admin buyrug'ini yuboring.",
-                reply_markup=open_app_kb(),
-            )
-            return
-        db.create_user(user_id, update.effective_user.first_name, username=username, status="pending")
-        await update.message.reply_text("So'rovingiz yuborildi, tasdiqlanishini kuting. ⏳")
-        await notify_admins_new_request(context, user_id, update.effective_user.first_name, username)
-        return
+        is_super_admin = user_id == ADMIN_ID
+        db.create_user(user_id, update.effective_user.first_name, username=username,
+                        status="approved", is_admin=is_super_admin)
+        user = db.get_user(user_id)
 
-    if user["status"] == "pending":
-        await update.message.reply_text("So'rovingiz hali ko'rib chiqilmoqda. ⏳")
-        return
-    if user["status"] == "denied":
-        await update.message.reply_text(
-            "Kechirasiz, kirish so'rovingiz rad etilgan.",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔁 Qayta so'rov yuborish", callback_data=f"rs:{user_id}")]
-            ]),
-        )
-        return
     if user["status"] == "banned":
         await update.message.reply_text("🚫 Siz bloklangansiz.")
         return
 
+    if user["relationship_id"]:
+        partner = db.partner_of(user_id)
+        if partner:
+            await update.message.reply_text(
+                f"Xush kelibsiz, {user['name']}! 🌷 Siz {partner['name']} bilan bog'langansiz.",
+                reply_markup=open_app_kb(),
+            )
+        else:
+            rel = db.get_relationship(user["relationship_id"])
+            await update.message.reply_text(
+                f"Sizning taklif kodingiz: `{rel['invite_code']}`\n\n"
+                "Sherigingiz botga kirib, shu kodni yuborishi bilan bog'lanasiz.",
+                parse_mode=ParseMode.MARKDOWN,
+            )
+        return
+
     await update.message.reply_text(
-        f"Xush kelibsiz, {user['name']}! 🌷", reply_markup=open_app_kb()
+        f"Xush kelibsiz, {user['name']}! 💞\n\nSevgi ilovasidan foydalanish uchun avval sherigingiz bilan bog'lanishingiz kerak.",
+        reply_markup=pairing_kb(),
     )
 
 
-async def notify_admins_new_request(context, user_id, name, username):
-    username_display = username or "yo'q"
-    text = (
-        "🆕 *Yangi kirish so'rovi*\n\n"
-        f"👤 Ism: {name}\n"
-        f"📛 Username: @{username_display}\n"
-        f"🆔 ID: `{user_id}`"
-    )
-    kb = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"ua:approve:{user_id}"),
-            InlineKeyboardButton("❌ Rad etish", callback_data=f"ua:deny:{user_id}"),
-        ],
-        [InlineKeyboardButton("⛔ Ban", callback_data=f"ua:ban:{user_id}")],
+def pairing_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("💌 Yangi juftlik yaratish", callback_data="pr:create")],
+        [InlineKeyboardButton("🔑 Taklif kodini kiritish", callback_data="pr:join")],
     ])
-    admin_ids = {ADMIN_ID} | {a["user_id"] for a in db.admin_users()}
-    for aid in admin_ids:
-        if not aid:
-            continue
-        try:
-            await context.bot.send_message(aid, text, parse_mode=ParseMode.MARKDOWN, reply_markup=kb)
-        except Exception:
-            pass
 
 
-async def resend_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def pairing_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    uid = int(query.data.split(":")[1])
-    if update.effective_user.id != uid:
-        return
-    db.resend_request(uid)
-    await query.edit_message_text("🔁 So'rovingiz qayta yuborildi, tasdiqlanishini kuting. ⏳")
-    user = db.get_user(uid)
-    await notify_admins_new_request(context, uid, user["name"], user["username"])
+    user_id = update.effective_user.id
+    action = query.data.split(":")[1]
+
+    if action == "create":
+        rel = db.create_relationship(user_id)
+        await query.edit_message_text(
+            f"✅ Juftlik yaratildi!\n\nTaklif kodingiz: `{rel['invite_code']}`\n\n"
+            "Bu kodni sherigingizga yuboring. U botga kirib, \"🔑 Taklif kodini kiritish\" tugmasini bosib, "
+            "shu kodni kiritishi bilan bog'lanasiz.",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+    elif action == "join":
+        context.user_data["awaiting"] = "join_code"
+        await query.edit_message_text("🔑 Sherigingiz bergan 6 xonali kodni yuboring.\n\n/cancel — bekor qilish")
 
 
 # ============================================================
@@ -189,23 +172,7 @@ async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_id = update.effective_user.id
     admin_name = admin_name_of(update)
 
-    if action == "approve":
-        db.set_user_status(uid, "approved")
-        db.log_admin_action(admin_id, admin_name, "approve", uid)
-        await query.edit_message_text(f"✅ {target['name']} tasdiqlandi.")
-        try:
-            await context.bot.send_message(uid, "So'rovingiz tasdiqlandi! 🎉", reply_markup=open_app_kb())
-        except Exception:
-            pass
-    elif action == "deny":
-        db.set_user_status(uid, "denied")
-        db.log_admin_action(admin_id, admin_name, "deny", uid)
-        await query.edit_message_text(f"❌ {target['name']} rad etildi.")
-        try:
-            await context.bot.send_message(uid, "Kechirasiz, kirish so'rovingiz rad etildi.")
-        except Exception:
-            pass
-    elif action == "ban":
+    if action == "ban":
         db.set_user_status(uid, "banned")
         db.log_admin_action(admin_id, admin_name, "ban", uid)
         await query.edit_message_text(f"⛔ {target['name']} ban qilindi.")
@@ -396,7 +363,34 @@ async def cancel_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def admin_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     awaiting = context.user_data.get("awaiting")
-    if not awaiting or not is_admin(update.effective_user.id):
+    if not awaiting:
+        return
+
+    if awaiting == "join_code":
+        context.user_data.pop("awaiting", None)
+        code = (update.message.text or "").strip()
+        user_id = update.effective_user.id
+        rel = db.join_relationship(user_id, code)
+        if not rel:
+            await update.message.reply_text("❗️ Kod noto'g'ri yoki band. Qayta urinish uchun /start bosing.")
+            return
+        partner = db.partner_of(user_id)
+        await update.message.reply_text(
+            f"💞 Tabriklaymiz! Siz {partner['name'] if partner else 'sherigingiz'} bilan bog'landingiz!",
+            reply_markup=open_app_kb(),
+        )
+        if partner:
+            try:
+                await context.bot.send_message(
+                    partner["user_id"],
+                    f"💞 {update.effective_user.first_name} taklifingizni qabul qildi! Endi bog'langansiz.",
+                    reply_markup=open_app_kb(),
+                )
+            except Exception:
+                pass
+        return
+
+    if not is_admin(update.effective_user.id):
         return
 
     if awaiting == "search":
@@ -520,7 +514,7 @@ def build_bot_app() -> Application:
 
     application.add_handler(CallbackQueryHandler(admin_menu_router, pattern="^am:"))
     application.add_handler(CallbackQueryHandler(user_action, pattern="^ua:"))
-    application.add_handler(CallbackQueryHandler(resend_callback, pattern="^rs:"))
+    application.add_handler(CallbackQueryHandler(pairing_callback, pattern="^pr:"))
 
     application.add_handler(MessageHandler(
         (filters.TEXT | filters.PHOTO | filters.VIDEO | filters.Document.ALL) & ~filters.COMMAND,

@@ -26,31 +26,42 @@ async def daily_reminder_job(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def weekly_summary_job(context: ContextTypes.DEFAULT_TYPE):
-    """Har yakshanba 21:00da — haftalik xulosa yuboradi."""
+    """Har yakshanba 21:00da — har bir juftlikka o'z haftalik xulosasini yuboradi."""
     cutoff_date = (date.today() - timedelta(days=7)).isoformat()
-    cutoff_dt = (date.today() - timedelta(days=7)).isoformat() + " 00:00:00"
+    cutoff_dt = cutoff_date + " 00:00:00"
 
-    journal_n = db.journal_count_since(cutoff_dt)
-    plans_n = db.plans_completed_since(cutoff_dt)
+    paired_users = [u for u in db.approved_users() if u["relationship_id"]]
+    seen_relationships = set()
 
-    users = db.approved_users()
-    mood_lines = []
-    for user in users:
-        common = db.most_common_mood_since(user["user_id"], cutoff_date)
-        if common:
-            mood_lines.append(f"{user['name']}: {common}")
+    for user in paired_users:
+        rel_id = user["relationship_id"]
+        if rel_id in seen_relationships:
+            continue
+        seen_relationships.add(rel_id)
 
-    text = (
-        "📊 *Haftalik xulosa*\n\n"
-        f"Bu hafta {journal_n} ta xotira qo'shildi\n"
-        f"{plans_n} ta reja bajarildi\n"
-    )
-    if mood_lines:
-        text += "Eng ko'p bo'lgan kayfiyat — " + ", ".join(mood_lines) + "\n"
-    text += "\nKeyingi hafta ham chiroyli xotiralar bilan to'lsin 💛"
+        partner = db.partner_of(user["user_id"])
+        pair_users = [user] + ([partner] if partner else [])
 
-    for user in users:
-        try:
-            await context.bot.send_message(user["user_id"], text, parse_mode="Markdown")
-        except Exception:
-            pass
+        journal_n = db.journal_count_since(rel_id, cutoff_dt)
+        plans_n = db.plans_completed_since(rel_id, cutoff_dt)
+
+        mood_lines = []
+        for u in pair_users:
+            common = db.most_common_mood_since(u["user_id"], cutoff_date)
+            if common:
+                mood_lines.append(f"{u['name']}: {common}")
+
+        text = (
+            "📊 *Haftalik xulosa*\n\n"
+            f"Bu hafta {journal_n} ta xotira qo'shildi\n"
+            f"{plans_n} ta reja bajarildi\n"
+        )
+        if mood_lines:
+            text += "Eng ko'p bo'lgan kayfiyat — " + ", ".join(mood_lines) + "\n"
+        text += "\nKeyingi hafta ham chiroyli xotiralar bilan to'lsin 💛"
+
+        for u in pair_users:
+            try:
+                await context.bot.send_message(u["user_id"], text, parse_mode="Markdown")
+            except Exception:
+                pass
