@@ -25,8 +25,6 @@ from telegram.ext import (
 )
 
 from . import db
-from . import i18n
-from .i18n import t
 
 logger = logging.getLogger("sevgi.bot")
 
@@ -39,27 +37,16 @@ APP_URL = os.environ.get("APP_URL", "")
 # Yordamchi funksiyalar
 # ============================================================
 
-def is_admin(user_id: int, user=None) -> bool:
+def is_admin(user_id: int) -> bool:
     if user_id == ADMIN_ID:
         return True
-    if user is None:
-        user = db.get_user(user_id)
+    user = db.get_user(user_id)
     return bool(user and user["is_admin"])
 
 
-def get_lang(user) -> str:
-    if not user:
-        return i18n.DEFAULT_LANG
-    try:
-        lang = user["ui_lang"]
-    except (KeyError, IndexError, TypeError):
-        lang = None
-    return lang if lang in i18n.LANGS else i18n.DEFAULT_LANG
-
-
-def open_app_kb(lang: str = i18n.DEFAULT_LANG) -> InlineKeyboardMarkup:
+def open_app_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(t("btn_open", lang), web_app=WebAppInfo(url=APP_URL))]
+        [InlineKeyboardButton("💞 Ochish", web_app=WebAppInfo(url=APP_URL))]
     ])
 
 
@@ -99,310 +86,298 @@ def fmt_user_line(u) -> str:
 
 
 # ============================================================
-# Menyu klaviaturalari
+# /start — ro'yxatdan o'tish, tasdiqlash, resend
 # ============================================================
 
-def new_user_menu_kb(lang: str) -> InlineKeyboardMarkup:
-    """Sherik hali ulanmagan foydalanuvchi uchun asosiy menyu."""
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton(t("btn_open", lang), web_app=WebAppInfo(url=APP_URL))],
-        [InlineKeyboardButton(t("btn_add_partner", lang), callback_data="nav:addpartner")],
-        [InlineKeyboardButton(t("btn_settings", lang), callback_data="nav:settings")],
-    ])
+TEXT = {
+    "uz": {
+        "welcome_new": "Xush kelibsiz, {name}! 💞\n\nQuyidagi menyudan foydalaning:",
+        "welcome_back": "Xush kelibsiz, {name}! 🌷",
+        "connected_with": "Siz {partner} bilan bog'langansiz.",
+        "not_connected": "Hali sherigingiz bilan bog'lanmagansiz.",
+        "open": "💞 Ilovani ochish",
+        "add_partner": "🔗 Sherik qo'shish",
+        "settings": "⚙️ Sozlamalar",
+        "back": "⬅️ Orqaga",
+        "my_code": "📋 Mening kodim",
+        "enter_code": "🔑 Kod kiritish",
+        "language": "🌐 Til",
+        "clear_data": "🗑 Ma'lumotni o'chirish",
+        "switch_partner": "🔄 Sherikni almashtirish",
+        "settings_title": "⚙️ *Sozlamalar*",
+        "addpartner_title": "🔗 Sherik qo'shish:",
+        "choose_lang": "🌐 Tilni tanlang:",
+        "lang_saved": "✅ Til saqlandi.",
+        "mycode_paired": "Siz allaqachon {partner} bilan bog'langansiz.",
+        "mycode_solo": "Sizning shaxsiy taklif kodingiz:\n\n`{code}`\n\nBu kodni sherigingizga yuboring — u \"🔑 Kod kiritish\" orqali kiritishi bilan bog'lanasiz.",
+        "enter_prompt": "🔑 Sherigingiz bergan kodni yuboring.",
+        "banned": "🚫 Siz bloklangansiz.",
+    },
+    "ru": {
+        "welcome_new": "Добро пожаловать, {name}! 💞\n\nВыберите действие в меню:",
+        "welcome_back": "С возвращением, {name}! 🌷",
+        "connected_with": "Вы связаны с {partner}.",
+        "not_connected": "Вы ещё не связаны с партнёром.",
+        "open": "💞 Открыть приложение",
+        "add_partner": "🔗 Добавить партнёра",
+        "settings": "⚙️ Настройки",
+        "back": "⬅️ Назад",
+        "my_code": "📋 Мой код",
+        "enter_code": "🔑 Ввести код",
+        "language": "🌐 Язык",
+        "clear_data": "🗑 Очистить данные",
+        "switch_partner": "🔄 Сменить партнёра",
+        "settings_title": "⚙️ *Настройки*",
+        "addpartner_title": "🔗 Добавить партнёра:",
+        "choose_lang": "🌐 Выберите язык:",
+        "lang_saved": "✅ Язык сохранён.",
+        "mycode_paired": "Вы уже связаны с {partner}.",
+        "mycode_solo": "Ваш личный код приглашения:\n\n`{code}`\n\nОтправьте его партнёру — он введёт его через \"🔑 Ввести код\", и вы будете связаны.",
+        "enter_prompt": "🔑 Отправьте код, который дал вам партнёр.",
+        "banned": "🚫 Вы заблокированы.",
+    },
+    "en": {
+        "welcome_new": "Welcome, {name}! 💞\n\nChoose an option below:",
+        "welcome_back": "Welcome back, {name}! 🌷",
+        "connected_with": "You're connected with {partner}.",
+        "not_connected": "You're not connected with a partner yet.",
+        "open": "💞 Open the app",
+        "add_partner": "🔗 Add partner",
+        "settings": "⚙️ Settings",
+        "back": "⬅️ Back",
+        "my_code": "📋 My code",
+        "enter_code": "🔑 Enter code",
+        "language": "🌐 Language",
+        "clear_data": "🗑 Clear data",
+        "switch_partner": "🔄 Switch partner",
+        "settings_title": "⚙️ *Settings*",
+        "addpartner_title": "🔗 Add partner:",
+        "choose_lang": "🌐 Choose a language:",
+        "lang_saved": "✅ Language saved.",
+        "mycode_paired": "You're already connected with {partner}.",
+        "mycode_solo": "Your personal invite code:\n\n`{code}`\n\nSend it to your partner — once they enter it via \"🔑 Enter code\", you'll be connected.",
+        "enter_prompt": "🔑 Send the code your partner gave you.",
+        "banned": "🚫 You are blocked.",
+    },
+}
 
 
-def minimal_menu_kb(lang: str) -> InlineKeyboardMarkup:
-    """Sherik ulangan (yoki kutayotgan) foydalanuvchi uchun minimal asosiy menyu."""
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton(t("btn_open", lang), web_app=WebAppInfo(url=APP_URL))],
-        [InlineKeyboardButton(t("btn_settings", lang), callback_data="nav:settings")],
-    ])
+def tt(user_id: int, key: str, **kwargs) -> str:
+    lang = db.get_setting(f"lang_{user_id}") or "uz"
+    template = TEXT.get(lang, TEXT["uz"]).get(key) or TEXT["uz"][key]
+    return template.format(**kwargs)
 
-
-def addpartner_kb(lang: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton(t("btn_get_code", lang), callback_data="ap:get_code")],
-        [InlineKeyboardButton(t("btn_enter_code", lang), callback_data="ap:enter_code")],
-        [InlineKeyboardButton(t("btn_back", lang), callback_data="nav:main")],
-    ])
-
-
-def settings_kb(user, lang: str) -> InlineKeyboardMarkup:
-    rows = [[InlineKeyboardButton(t("btn_language", lang), callback_data="nav:language")]]
-    if user and user["relationship_id"]:
-        partner = db.partner_of(user["user_id"])
-        if partner:
-            rows.append([InlineKeyboardButton(t("btn_reset_data", lang), callback_data="st:reset_confirm")])
-            rows.append([InlineKeyboardButton(t("btn_change_partner", lang), callback_data="st:unlink_confirm")])
-        else:
-            rows.append([InlineKeyboardButton(t("btn_cancel_invite", lang), callback_data="st:unlink_confirm")])
-    else:
-        rows.append([InlineKeyboardButton(t("btn_connect_partner", lang), callback_data="nav:addpartner")])
-    if user and is_admin(user["user_id"], user):
-        rows.append([InlineKeyboardButton(t("btn_admin_panel", lang), callback_data="nav:adminpanel")])
-    rows.append([InlineKeyboardButton(t("btn_back", lang), callback_data="nav:main")])
-    return InlineKeyboardMarkup(rows)
-
-
-def language_kb(lang: str) -> InlineKeyboardMarkup:
-    rows = []
-    for code in i18n.LANGS:
-        label = i18n.LANG_NAMES[code] + (" ✅" if code == lang else "")
-        rows.append([InlineKeyboardButton(label, callback_data=f"lang:set:{code}")])
-    rows.append([InlineKeyboardButton(t("btn_back", lang), callback_data="nav:settings")])
-    return InlineKeyboardMarkup(rows)
-
-
-# ============================================================
-# /start
-# ============================================================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     username = update.effective_user.username
     user = db.get_user(user_id)
+    is_new = user is None
 
     if user is None:
         is_super_admin = user_id == ADMIN_ID
         db.create_user(user_id, update.effective_user.first_name, username=username,
                         status="approved", is_admin=is_super_admin)
+        db.create_relationship(user_id)  # har bir foydalanuvchida darhol shaxsiy taklif kodi tayyor bo'ladi
         user = db.get_user(user_id)
-
-    lang = get_lang(user)
 
     if user["status"] == "banned":
-        await update.message.reply_text(t("banned", lang))
+        await update.message.reply_text(tt(user_id, "banned"))
         return
 
-    context.user_data.pop("awaiting", None)
-    await render_main_menu(update, context, edit=False, user=user)
-
-
-async def render_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, edit: bool = False, user=None):
-    """Asosiy menyuni holatga qarab chiqaradi: yangi / sherik kutmoqda / bog'langan."""
-    user_id = update.effective_user.id
-    if user is None:
+    if not user["relationship_id"]:
+        db.create_relationship(user_id)  # ehtiyot chorasi (eski foydalanuvchilar uchun)
         user = db.get_user(user_id)
-    lang = get_lang(user)
 
-    if user["relationship_id"]:
-        partner = db.partner_of(user_id)
-        if partner:
-            text = t("welcome_paired", lang, name=user["name"], partner=partner["name"])
-            parse_mode = None
-        else:
-            rel = db.get_relationship(user["relationship_id"])
-            text = t("welcome_waiting", lang, code=rel["invite_code"])
-            parse_mode = ParseMode.MARKDOWN
-        kb = minimal_menu_kb(lang)
-    else:
-        text = t("welcome_new", lang, name=user["name"])
-        parse_mode = None
-        kb = new_user_menu_kb(lang)
-
-    if edit:
-        await update.callback_query.edit_message_text(text, parse_mode=parse_mode, reply_markup=kb)
-    else:
-        await update.message.reply_text(text, parse_mode=parse_mode, reply_markup=kb)
+    partner = db.partner_of(user_id)
+    key = "welcome_new" if is_new else "welcome_back"
+    text = tt(user_id, key, name=user["name"])
+    if partner:
+        text += " " + tt(user_id, "connected_with", partner=partner["name"])
+    await update.message.reply_text(text, reply_markup=user_main_menu_kb(user_id))
 
 
-# ============================================================
-# Navigatsiya (asosiy / sherik qo'shish / sozlamalar / til / admin)
-# ============================================================
+def user_main_menu_kb(user_id: int) -> InlineKeyboardMarkup:
+    partner = db.partner_of(user_id)
+    rows = [[InlineKeyboardButton(tt(user_id, "open"), web_app=WebAppInfo(url=APP_URL))]]
+    if not partner:
+        rows.append([InlineKeyboardButton(tt(user_id, "add_partner"), callback_data="pr:addpartner")])
+    rows.append([InlineKeyboardButton(tt(user_id, "settings"), callback_data="pr:settings")])
+    return InlineKeyboardMarkup(rows)
 
-async def nav_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+async def pairing_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     user_id = update.effective_user.id
-    user = db.get_user(user_id)
-    lang = get_lang(user)
-    target = query.data.split(":", 1)[1]
-
-    if target == "main":
-        context.user_data.pop("awaiting", None)
-        await render_main_menu(update, context, edit=True, user=user)
-
-    elif target == "addpartner":
-        context.user_data.pop("awaiting", None)
-        await query.edit_message_text(
-            t("addpartner_title", lang), parse_mode=ParseMode.MARKDOWN, reply_markup=addpartner_kb(lang)
-        )
-
-    elif target == "settings":
-        context.user_data.pop("awaiting", None)
-        await query.edit_message_text(
-            t("settings_title", lang), parse_mode=ParseMode.MARKDOWN, reply_markup=settings_kb(user, lang)
-        )
-
-    elif target == "language":
-        await query.edit_message_text(t("language_title", lang), reply_markup=language_kb(lang))
-
-    elif target == "adminpanel":
-        if not is_admin(user_id):
-            await query.answer(t("not_admin", lang), show_alert=True)
-            return
-        context.user_data.pop("awaiting", None)
-        await query.edit_message_text("👨‍💼 *ADMIN PANEL*", parse_mode=ParseMode.MARKDOWN, reply_markup=main_menu_kb())
-
-
-async def lang_set_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = update.effective_user.id
-    lang = query.data.split(":")[2]
-    if lang not in i18n.LANGS:
-        lang = i18n.DEFAULT_LANG
-    db.set_user_lang(user_id, lang)
-    await query.answer(t("language_set", lang))
-    user = db.get_user(user_id)
-    await query.edit_message_text(
-        t("settings_title", lang), parse_mode=ParseMode.MARKDOWN, reply_markup=settings_kb(user, lang)
-    )
-
-
-# ============================================================
-# Sherik qo'shish (taklif kodi olish / kiritish)
-# ============================================================
-
-async def addpartner_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = update.effective_user.id
-    user = db.get_user(user_id)
-    lang = get_lang(user)
-    action = query.data.split(":", 1)[1]
-
-    if action == "get_code":
-        if user["relationship_id"]:
-            rel = db.get_relationship(user["relationship_id"])
-        else:
-            rel = db.create_relationship(user_id)
-        await query.edit_message_text(
-            t("own_code_shown", lang, code=rel["invite_code"], enter_btn=t("btn_enter_code", lang)),
-            parse_mode=ParseMode.MARKDOWN,
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(t("btn_back", lang), callback_data="nav:addpartner")]]),
-        )
-
-    elif action == "enter_code":
-        context.user_data["awaiting"] = "join_code"
-        await query.edit_message_text(
-            t("ask_enter_code", lang),
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton(t("btn_cancel", lang), callback_data="ap:cancel")]]),
-        )
-
-    elif action == "cancel":
-        context.user_data.pop("awaiting", None)
-        await query.edit_message_text(
-            t("addpartner_title", lang), parse_mode=ParseMode.MARKDOWN, reply_markup=addpartner_kb(lang)
-        )
-
-
-# ============================================================
-# Sozlamalar ichidagi amallar: ma'lumotni o'chirish / sherikni almashtirish
-# (2 marta o'z-tasdiq + sherik roziligi)
-# ============================================================
-
-async def settings_action_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    user_id = update.effective_user.id
-    user = db.get_user(user_id)
-    lang = get_lang(user)
     parts = query.data.split(":")
     action = parts[1]
 
-    if action == "cancel":
+    # ---------- Asosiy navigatsiya ----------
+
+    if action == "menu":
+        context.user_data.pop("awaiting", None)
+        user = db.get_user(user_id)
+        partner = db.partner_of(user_id)
+        text = tt(user_id, "welcome_back", name=user["name"])
+        text += " " + (tt(user_id, "connected_with", partner=partner["name"]) if partner else tt(user_id, "not_connected"))
+        await query.edit_message_text(text, reply_markup=user_main_menu_kb(user_id))
+
+    elif action == "addpartner":
         await query.edit_message_text(
-            t("settings_title", lang), parse_mode=ParseMode.MARKDOWN, reply_markup=settings_kb(user, lang)
+            tt(user_id, "addpartner_title"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton(tt(user_id, "my_code"), callback_data="pr:mycode")],
+                [InlineKeyboardButton(tt(user_id, "enter_code"), callback_data="pr:enterjoin")],
+                [InlineKeyboardButton(tt(user_id, "back"), callback_data="pr:menu")],
+            ]),
         )
-        return
 
-    # ---------- Ma'lumotlarni tozalash ----------
+    elif action == "mycode":
+        user = db.get_user(user_id)
+        partner = db.partner_of(user_id)
+        if partner:
+            text = tt(user_id, "mycode_paired", partner=partner["name"])
+        else:
+            rel = db.get_relationship(user["relationship_id"])
+            text = tt(user_id, "mycode_solo", code=rel["invite_code"])
+        await query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN,
+                                       reply_markup=back_kb("pr:addpartner", tt(user_id, "back")))
 
-    if action == "reset_confirm":
+    elif action == "enterjoin":
+        context.user_data["awaiting"] = "join_code"
+        await query.edit_message_text(tt(user_id, "enter_prompt"),
+                                       reply_markup=back_kb("pr:addpartner", tt(user_id, "back")))
+
+    elif action == "settings":
+        partner = db.partner_of(user_id)
+        rows = [[InlineKeyboardButton(tt(user_id, "language"), callback_data="pr:lang")]]
+        if partner:
+            rows.append([InlineKeyboardButton(tt(user_id, "clear_data"), callback_data="pr:reset_confirm")])
+            rows.append([InlineKeyboardButton(tt(user_id, "switch_partner"), callback_data="pr:unlink_confirm")])
+        else:
+            rows.append([InlineKeyboardButton(tt(user_id, "add_partner"), callback_data="pr:addpartner")])
+        rows.append([InlineKeyboardButton(tt(user_id, "back"), callback_data="pr:menu")])
+        await query.edit_message_text(tt(user_id, "settings_title"), parse_mode=ParseMode.MARKDOWN,
+                                       reply_markup=InlineKeyboardMarkup(rows))
+
+    elif action == "lang":
         await query.edit_message_text(
-            t("reset_confirm1", lang), parse_mode=ParseMode.MARKDOWN,
+            tt(user_id, "choose_lang"),
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="pr:setlang:uz")],
+                [InlineKeyboardButton("🇷🇺 Русский", callback_data="pr:setlang:ru")],
+                [InlineKeyboardButton("🇬🇧 English", callback_data="pr:setlang:en")],
+                [InlineKeyboardButton(tt(user_id, "back"), callback_data="pr:settings")],
+            ]),
+        )
+
+    elif action == "setlang":
+        lang = parts[2]
+        db.set_setting(f"lang_{user_id}", lang)
+        await query.edit_message_text(tt(user_id, "lang_saved"),
+                                       reply_markup=back_kb("pr:settings", tt(user_id, "back")))
+
+    # ---------- Ma'lumotlarni tozalash: 2 marta o'z-tasdiq + sherik roziligi ----------
+
+    elif action == "reset_confirm":
+        await query.edit_message_text(
+            "⚠️ *Diqqat!* Bu amal barcha xotiralar, kayfiyat tarixi, rejalar va maxsus kunlaringizni "
+            "butunlay o'chiradi. Sherikligingiz saqlanib qoladi — faqat ma'lumotlar tozalanadi.\n\n"
+            "Davom etasizmi?",
+            parse_mode=ParseMode.MARKDOWN,
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(t("btn_continue", lang), callback_data="st:reset_confirm2"),
-                InlineKeyboardButton(t("btn_cancel", lang), callback_data="st:cancel"),
+                InlineKeyboardButton("Davom etish", callback_data="pr:reset_confirm2"),
+                InlineKeyboardButton("❌ Bekor qilish", callback_data="pr:settings"),
             ]]),
         )
 
     elif action == "reset_confirm2":
         await query.edit_message_text(
-            t("reset_confirm2", lang), parse_mode=ParseMode.MARKDOWN,
+            "❗️ *So'nggi ogohlantirish.* Bu amalni ortga qaytarib bo'lmaydi — barcha ma'lumotlar butunlay yo'qoladi.\n\n"
+            "Ishonchingiz komilmi?",
+            parse_mode=ParseMode.MARKDOWN,
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(t("btn_yes_sure", lang), callback_data="st:reset_ask"),
-                InlineKeyboardButton(t("btn_no_cancel", lang), callback_data="st:cancel"),
+                InlineKeyboardButton("✅ Ha, albatta", callback_data="pr:reset_ask"),
+                InlineKeyboardButton("❌ Yo'q, bekor qilish", callback_data="pr:settings"),
             ]]),
         )
 
     elif action == "reset_ask":
+        user = db.get_user(user_id)
         if not (user and user["relationship_id"]):
-            await query.edit_message_text(t("reset_no_relationship", lang))
+            await query.edit_message_text("Hozircha aktiv juftlik topilmadi.", reply_markup=back_kb("pr:settings"))
             return
         partner = db.partner_of(user_id)
         if not partner:
             db.reset_relationship_data(user["relationship_id"])
-            await query.edit_message_text(t("reset_done_alone", lang), reply_markup=open_app_kb(lang))
+            await query.edit_message_text("🗑 Ma'lumotlar tozalandi. Yangidan boshlashingiz mumkin!", reply_markup=open_app_kb())
             return
-        await query.edit_message_text(t("reset_sent_to_partner", lang))
-        partner_lang = get_lang(partner)
+        await query.edit_message_text("⏳ So'rov sherigingizga yuborildi. U ham tasdiqlagach, ma'lumotlar tozalanadi.")
         try:
             await context.bot.send_message(
                 partner["user_id"],
-                t("reset_ask_partner", partner_lang, name=update.effective_user.first_name),
+                f"⚠️ *{update.effective_user.first_name}* barcha umumiy ma'lumotlaringizni "
+                "(xotiralar, kayfiyat, rejalar, maxsus kunlar) butunlay tozalashni so'ramoqda.\n\n"
+                "Bunga roziimisiz?",
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(t("btn_agree", partner_lang), callback_data=f"st:reset_approve:{user_id}"),
-                    InlineKeyboardButton(t("btn_disagree", partner_lang), callback_data=f"st:reset_deny:{user_id}"),
+                    InlineKeyboardButton("✅ Roziman", callback_data=f"pr:reset_approve:{user_id}"),
+                    InlineKeyboardButton("❌ Rozi emasman", callback_data=f"pr:reset_deny:{user_id}"),
                 ]]),
             )
         except Exception:
-            await query.edit_message_text(t("reset_send_fail", lang))
+            await query.edit_message_text("Sherigingizga xabar yuborib bo'lmadi. Keyinroq qayta urinib ko'ring.",
+                                           reply_markup=back_kb("pr:settings"))
 
     elif action == "reset_approve":
         initiator_id = int(parts[2])
         partner = db.partner_of(user_id)
         if not partner or partner["user_id"] != initiator_id:
-            await query.edit_message_text(t("reset_expired", lang))
+            await query.edit_message_text("Bu so'rov endi amal qilmaydi.", reply_markup=back_kb("pr:menu"))
             return
+        user = db.get_user(user_id)
         db.reset_relationship_data(user["relationship_id"])
-        await query.edit_message_text(t("reset_done", lang), reply_markup=open_app_kb(lang))
-        initiator_lang = get_lang(db.get_user(initiator_id))
+        await query.edit_message_text("🗑 Ma'lumotlar tozalandi.", reply_markup=open_app_kb())
         try:
             await context.bot.send_message(
-                initiator_id, t("reset_approved_notice", initiator_lang, name=update.effective_user.first_name),
-                reply_markup=open_app_kb(initiator_lang),
+                initiator_id, f"✅ {update.effective_user.first_name} rozi bo'ldi. Ma'lumotlar tozalandi.",
+                reply_markup=open_app_kb(),
             )
         except Exception:
             pass
 
     elif action == "reset_deny":
         initiator_id = int(parts[2])
-        await query.edit_message_text(t("reset_cancelled", lang))
-        initiator_lang = get_lang(db.get_user(initiator_id))
+        await query.edit_message_text("Bekor qilindi — ma'lumotlar tozalanmadi.", reply_markup=back_kb("pr:menu"))
         try:
-            await context.bot.send_message(initiator_id, t("reset_denied_notice", initiator_lang))
+            await context.bot.send_message(initiator_id, "❌ Sherigingiz ma'lumotlarni tozalashga rozi bo'lmadi.")
         except Exception:
             pass
 
-    # ---------- Sherikni almashtirish / taklifni bekor qilish ----------
+    # ---------- Sherikni almashtirish: 2 marta o'z-tasdiq + sherik roziligi ----------
 
     elif action == "unlink_confirm":
         await query.edit_message_text(
-            t("unlink_confirm1", lang), parse_mode=ParseMode.MARKDOWN,
+            "⚠️ *Diqqat!* Bu amal joriy bog'lanishni butunlay bekor qiladi. Agar sherigingiz allaqachon "
+            "bog'langan bo'lsa, u ham ajraladi va ikkalangiz alohida yangi sherik bilan bog'lanishingiz "
+            "kerak bo'ladi. Umumiy ma'lumotlar o'chirilmaydi, lekin unga hech kim kira olmay qoladi.\n\n"
+            "Davom etasizmi?",
+            parse_mode=ParseMode.MARKDOWN,
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(t("btn_continue", lang), callback_data="st:unlink_confirm2"),
-                InlineKeyboardButton(t("btn_cancel", lang), callback_data="st:cancel"),
+                InlineKeyboardButton("Davom etish", callback_data="pr:unlink_confirm2"),
+                InlineKeyboardButton("❌ Bekor qilish", callback_data="pr:settings"),
             ]]),
         )
 
     elif action == "unlink_confirm2":
         await query.edit_message_text(
-            t("unlink_confirm2", lang), parse_mode=ParseMode.MARKDOWN,
+            "❗️ *So'nggi ogohlantirish.* Aloqa uzilgach, qayta bog'lanish uchun yangi taklif kodi kerak bo'ladi.\n\n"
+            "Ishonchingiz komilmi?",
+            parse_mode=ParseMode.MARKDOWN,
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(t("btn_yes_sure", lang), callback_data="st:unlink_ask"),
-                InlineKeyboardButton(t("btn_no_cancel", lang), callback_data="st:cancel"),
+                InlineKeyboardButton("✅ Ha, albatta", callback_data="pr:unlink_ask"),
+                InlineKeyboardButton("❌ Yo'q, bekor qilish", callback_data="pr:settings"),
             ]]),
         )
 
@@ -410,46 +385,51 @@ async def settings_action_callback(update: Update, context: ContextTypes.DEFAULT
         partner = db.partner_of(user_id)
         if not partner:
             db.leave_relationship(user_id)
-            await query.edit_message_text(t("unlink_done_alone", lang), reply_markup=new_user_menu_kb(lang))
+            db.create_relationship(user_id)
+            await query.edit_message_text("🔄 Bekor qilindi. Yangi shaxsiy kod yaratildi.", reply_markup=user_main_menu_kb(user_id))
             return
-        await query.edit_message_text(t("unlink_sent_to_partner", lang))
-        partner_lang = get_lang(partner)
+        await query.edit_message_text("⏳ So'rov sherigingizga yuborildi. U ham tasdiqlagach, aloqa uziladi.")
         try:
             await context.bot.send_message(
                 partner["user_id"],
-                t("unlink_ask_partner", partner_lang, name=update.effective_user.first_name),
+                f"⚠️ *{update.effective_user.first_name}* siz bilan aloqani uzishni so'ramoqda "
+                "(ma'lumotlar o'chirilmaydi, faqat aloqa uziladi).\n\nBunga roziimisiz?",
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(t("btn_agree", partner_lang), callback_data=f"st:unlink_approve:{user_id}"),
-                    InlineKeyboardButton(t("btn_disagree", partner_lang), callback_data=f"st:unlink_deny:{user_id}"),
+                    InlineKeyboardButton("✅ Roziman", callback_data=f"pr:unlink_approve:{user_id}"),
+                    InlineKeyboardButton("❌ Rozi emasman", callback_data=f"pr:unlink_deny:{user_id}"),
                 ]]),
             )
         except Exception:
-            await query.edit_message_text(t("reset_send_fail", lang))
+            await query.edit_message_text("Sherigingizga xabar yuborib bo'lmadi. Keyinroq qayta urinib ko'ring.",
+                                           reply_markup=back_kb("pr:settings"))
 
     elif action == "unlink_approve":
         initiator_id = int(parts[2])
         partner = db.partner_of(user_id)
         if not partner or partner["user_id"] != initiator_id:
-            await query.edit_message_text(t("reset_expired", lang))
+            await query.edit_message_text("Bu so'rov endi amal qilmaydi.", reply_markup=back_kb("pr:menu"))
             return
         db.leave_relationship(user_id)
-        await query.edit_message_text(t("unlink_done", lang), reply_markup=new_user_menu_kb(lang))
-        initiator_lang = get_lang(db.get_user(initiator_id))
+        db.create_relationship(user_id)
+        db.create_relationship(initiator_id)
+        await query.edit_message_text(
+            "🔄 Aloqa uzildi. Endi yangi sherik bilan bog'lanishingiz mumkin.", reply_markup=user_main_menu_kb(user_id)
+        )
         try:
             await context.bot.send_message(
-                initiator_id, t("unlink_approved_notice", initiator_lang),
-                reply_markup=new_user_menu_kb(initiator_lang),
+                initiator_id,
+                "✅ Sherigingiz rozi bo'ldi. Aloqa uzildi. Endi yangi sherik bilan bog'lanishingiz mumkin.",
+                reply_markup=user_main_menu_kb(initiator_id),
             )
         except Exception:
             pass
 
     elif action == "unlink_deny":
         initiator_id = int(parts[2])
-        await query.edit_message_text(t("unlink_cancelled", lang))
-        initiator_lang = get_lang(db.get_user(initiator_id))
+        await query.edit_message_text("Bekor qilindi — aloqa uzilmadi.", reply_markup=back_kb("pr:menu"))
         try:
-            await context.bot.send_message(initiator_id, t("unlink_denied_notice", initiator_lang))
+            await context.bot.send_message(initiator_id, "❌ Sherigingiz aloqani uzishga rozi bo'lmadi.")
         except Exception:
             pass
 
@@ -465,7 +445,7 @@ def back_kb(callback_data: str = "am:menu", label: str = "⬅️ Orqaga") -> Inl
 async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     if not is_admin(update.effective_user.id):
-        await query.answer(t("not_admin", get_lang(db.get_user(update.effective_user.id))), show_alert=True)
+        await query.answer("⛔ Siz admin emassiz.", show_alert=True)
         return
     await query.answer()
     _, action, uid = query.data.split(":")
@@ -483,7 +463,7 @@ async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.log_admin_action(admin_id, admin_name, "ban", uid)
         await query.edit_message_text(f"⛔ {target['name']} ban qilindi.", reply_markup=back_kb("am:users"))
         try:
-            await context.bot.send_message(uid, t("banned", get_lang(target)))
+            await context.bot.send_message(uid, "🚫 Siz ushbu botdan foydalanishingiz bloklandi.")
         except Exception:
             pass
     elif action == "unban":
@@ -491,8 +471,7 @@ async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.log_admin_action(admin_id, admin_name, "unban", uid)
         await query.edit_message_text(f"♻️ {target['name']} qayta tasdiqlandi.", reply_markup=back_kb("am:users"))
         try:
-            target_lang = get_lang(target)
-            await context.bot.send_message(uid, "✅ Siz qayta tasdiqlandingiz!", reply_markup=open_app_kb(target_lang))
+            await context.bot.send_message(uid, "✅ Siz qayta tasdiqlandingiz!", reply_markup=open_app_kb())
         except Exception:
             pass
     elif action == "demote":
@@ -510,7 +489,7 @@ async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_admin(update.effective_user.id):
-        await update.message.reply_text(t("not_admin", get_lang(db.get_user(update.effective_user.id))))
+        await update.message.reply_text("⛔ Siz admin emassiz.")
         return
     await update.message.reply_text("👨‍💼 *ADMIN PANEL*", parse_mode=ParseMode.MARKDOWN, reply_markup=main_menu_kb())
 
@@ -525,14 +504,13 @@ def main_menu_kb() -> InlineKeyboardMarkup:
          InlineKeyboardButton("🔍 Qidiruv", callback_data="am:search")],
         [InlineKeyboardButton("📤 CSV Export", callback_data="am:export"),
          InlineKeyboardButton("💾 Backup", callback_data="am:backup")],
-        [InlineKeyboardButton("⬅️ Bot menyusiga qaytish", callback_data="nav:settings")],
     ])
 
 
 async def admin_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     if not is_admin(update.effective_user.id):
-        await query.answer(t("not_admin", get_lang(db.get_user(update.effective_user.id))), show_alert=True)
+        await query.answer("⛔ Siz admin emassiz.", show_alert=True)
         return
     await query.answer()
     parts = query.data.split(":")
@@ -673,7 +651,7 @@ def user_list_kb(rows, back_to: str) -> InlineKeyboardMarkup:
 
 
 # ============================================================
-# Matnli kirish (join_code / broadcast / search / addadmin oqimlari)
+# Matnli kirish (broadcast / search / addadmin oqimlari)
 # ============================================================
 
 async def cancel_flow(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -690,39 +668,33 @@ async def admin_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.pop("awaiting", None)
         code = (update.message.text or "").strip()
         user_id = update.effective_user.id
-        lang = get_lang(db.get_user(user_id))
         rel = db.join_relationship(user_id, code)
         if rel == "own_code":
             await update.message.reply_text(
-                t("own_code_error", lang),
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton(t("btn_retry", lang), callback_data="ap:enter_code")],
-                    [InlineKeyboardButton(t("btn_back", lang), callback_data="ap:cancel")],
-                ]),
+                "😅 Kechirasiz, bu sizning o'z kodingiz. Sherigingiz o'ziga tegishli kodni yuborishi kerak.",
+                reply_markup=back_kb("pr:addpartner"),
             )
             return
         if not rel:
             await update.message.reply_text(
-                t("code_invalid", lang),
+                "❗️ Kod noto'g'ri yoki band. Qaytadan urinib ko'ring:",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton(t("btn_retry", lang), callback_data="ap:enter_code")],
-                    [InlineKeyboardButton(t("btn_back", lang), callback_data="ap:cancel")],
+                    [InlineKeyboardButton("🔑 Qayta urinish", callback_data="pr:enterjoin")],
+                    [InlineKeyboardButton("⬅️ Orqaga", callback_data="pr:addpartner")],
                 ]),
             )
             return
         partner = db.partner_of(user_id)
-        partner_name = partner["name"] if partner else t("partner_fallback", lang)
         await update.message.reply_text(
-            t("joined_success", lang, partner=partner_name),
-            reply_markup=open_app_kb(lang),
+            f"💞 Tabriklaymiz! Siz {partner['name'] if partner else 'sherigingiz'} bilan bog'landingiz!",
+            reply_markup=open_app_kb(),
         )
         if partner:
-            partner_lang = get_lang(partner)
             try:
                 await context.bot.send_message(
                     partner["user_id"],
-                    t("partner_joined_notice", partner_lang, name=update.effective_user.first_name),
-                    reply_markup=open_app_kb(partner_lang),
+                    f"💞 {update.effective_user.first_name} taklifingizni qabul qildi! Endi bog'langansiz.",
+                    reply_markup=open_app_kb(),
                 )
             except Exception:
                 pass
@@ -854,10 +826,7 @@ def build_bot_app() -> Application:
 
     application.add_handler(CallbackQueryHandler(admin_menu_router, pattern="^am:"))
     application.add_handler(CallbackQueryHandler(user_action, pattern="^ua:"))
-    application.add_handler(CallbackQueryHandler(nav_callback, pattern="^nav:"))
-    application.add_handler(CallbackQueryHandler(addpartner_callback, pattern="^ap:"))
-    application.add_handler(CallbackQueryHandler(settings_action_callback, pattern="^st:"))
-    application.add_handler(CallbackQueryHandler(lang_set_callback, pattern="^lang:set:"))
+    application.add_handler(CallbackQueryHandler(pairing_callback, pattern="^pr:"))
 
     application.add_handler(MessageHandler(
         (filters.TEXT | filters.PHOTO | filters.VIDEO | filters.Document.ALL) & ~filters.COMMAND,

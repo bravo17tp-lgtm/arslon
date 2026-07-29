@@ -109,10 +109,15 @@ async def api_auth(x_telegram_init_data: str = Header(None)):
     if user is None:
         is_admin = user_id == ADMIN_ID
         db.create_user(user_id, name, username=tg_user.get("username"), status="approved", is_admin=is_admin)
+        db.create_relationship(user_id)
         user = db.get_user(user_id)
 
     if user["status"] == "banned":
         return {"status": "banned", "name": user["name"]}
+
+    if not user["relationship_id"]:
+        db.create_relationship(user_id)
+        user = db.get_user(user_id)
 
     db.touch_user_activity(user_id, tg_user.get("username"))
     paired = bool(user["relationship_id"])
@@ -148,9 +153,11 @@ def pair_create(x_telegram_init_data: str = Header(None)):
 @app.post("/api/pair/join")
 async def pair_join(code: str = Form(...), x_telegram_init_data: str = Header(None)):
     user = require_approved_user(x_telegram_init_data)
-    if user["relationship_id"]:
+    if db.partner_of(user["user_id"]):
         raise HTTPException(400, "Siz allaqachon sherigingiz bilan bog'langansiz")
     rel = db.join_relationship(user["user_id"], code)
+    if rel == "own_code":
+        raise HTTPException(400, "Bu sizning o'z kodingiz")
     if not rel:
         raise HTTPException(400, "Kod noto'g'ri yoki band")
     partner = db.partner_of(user["user_id"])
