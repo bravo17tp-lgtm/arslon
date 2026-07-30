@@ -23,11 +23,22 @@ logger = logging.getLogger("sevgi.db")
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 
-_pool_kwargs = {"cursor_factory": psycopg2.extras.RealDictCursor}
+_pool_kwargs = {
+    "cursor_factory": psycopg2.extras.RealDictCursor,
+    # Supabase/tarmoq bekor qilgan "jim" ulanishlarni ilg'ab, qayta ulanish
+    # zaruratini kamaytiradi — shu orqali har bir so'rov qayta SSL handshake
+    # qilishga majbur bo'lmaydi.
+    "keepalives": 1,
+    "keepalives_idle": 30,
+    "keepalives_interval": 10,
+    "keepalives_count": 3,
+}
 if "sslmode" not in DATABASE_URL:
     _pool_kwargs["sslmode"] = "require"
 
-_pool = pg_pool.ThreadedConnectionPool(1, 10, dsn=DATABASE_URL, **_pool_kwargs)
+# minconn=4 — ilova ishga tushganda 4 ta ulanish oldindan "isitib" qo'yiladi,
+# shunda birinchi haqiqiy so'rovlar yangi ulanish ochish uchun kutib turmaydi.
+_pool = pg_pool.ThreadedConnectionPool(4, 15, dsn=DATABASE_URL, **_pool_kwargs)
 
 
 class _ConnWrapper:
