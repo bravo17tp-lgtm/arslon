@@ -5,6 +5,7 @@ Ko'p foydalanuvchili (multi-user) arxitektura: har bir Telegram foydalanuvchisi
 mustaqil ro'yxatdan o'tadi va taklif kodi orqali sherigi bilan bog'lanadi.
 """
 
+import asyncio
 import calendar
 import logging
 import os
@@ -16,12 +17,13 @@ from fastapi import FastAPI, Header, HTTPException, Request, UploadFile, Form, F
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from telegram import Update
 
 from . import db
 from . import auth
 from . import storage
 from . content import MOOD_EMOJIS, QUESTIONS, QUOTES, LOVE_LANGUAGES, LOVE_TEST_QUESTIONS, THEMES
-from . telegram_bot import build_bot_app
+from . telegram_bot import build_bot_app, BOT_TOKEN
 from . jobs import daily_reminder_job, weekly_summary_job
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -39,18 +41,50 @@ app.add_middleware(
 bot_app = build_bot_app()
 
 
+APP_URL = os.environ.get("APP_URL", "")
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error("Kutilmagan xato: %s %s", request.url.path, exc, exc_info=exc)
     return JSONResponse(status_code=500, content={"detail": "Serverda kutilmagan xatolik yuz berdi."})
 
 
+@app.get("/health")
+def health():
+    """Tashqi keep-alive xizmatlar (masalan cron-job.org) shu manzilni davriy chaqirib,
+    Render'ning bepul tarifida serverni uxlab qolishdan saqlashi mumkin."""
+    return {"ok": True}
+
+
+@app.post("/telegram-webhook/{token}")
+async def telegram_webhook(token: str, request: Request):
+    """Telegram har bir yangi xabarni shu manzilga POST qiladi.
+    Bu — polling'dan farqli o'laroq — kiruvchi so'rov bo'lgani uchun,
+    Render uxlab qolgan bo'lsa ham serverni avtomatik uyg'otadi."""
+    if token != BOT_TOKEN:
+        raise HTTPException(403, "Forbidden")
+    data = await request.json()
+    update = Update.de_json(data, bot_app.bot)
+    await bot_app.process_update(update)
+    return {"ok": True}
+
+
 @app.on_event("startup")
 async def startup():
-    db.init_db()
+    await db_call(db.init_db)
     await bot_app.initialize()
     await bot_app.start()
-    await bot_app.updater.start_polling(drop_pending_updates=True)
+
+    if APP_URL:
+        webhook_url = f"{APP_URL.rstrip('/')}/telegram-webhook/{BOT_TOKEN}"
+        try:
+            await bot_app.bot.set_webhook(url=webhook_url, drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
+            logger.info("Webhook o'rnatildi: %s", webhook_url)
+        except Exception as e:
+            logger.error("Webhook o'rnatib bo'lmadi: %s", e)
+    else:
+        logger.warning("APP_URL bo'sh — webhook o'rnatilmadi. Uni Render Environment'da to'ldiring.")
 
     bot_app.job_queue.run_daily(
         daily_reminder_job, time=dtime(21, 0, tzinfo=TASHKENT), name="daily_reminder"
@@ -62,7 +96,6 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
-    await bot_app.updater.stop()
     await bot_app.stop()
     await bot_app.shutdown()
 
@@ -97,6 +130,11 @@ def today():
     return date.today().isoformat()
 
 
+async def db_call(fn, *args, **kwargs):
+    """Bloklovchi (sinxron) db.py chaqiruvlarini alohida threadda bajaradi — async endpointlar uchun."""
+    return await asyncio.to_thread(fn, *args, **kwargs)
+
+
 # ---------- Auth / ro'yxatdan o'tish ----------
 
 @app.post("/api/auth")
@@ -104,22 +142,22 @@ async def api_auth(x_telegram_init_data: str = Header(None)):
     tg_user = current_user(x_telegram_init_data)
     user_id = tg_user["id"]
     name = tg_user.get("first_name", "Foydalanuvchi")
-    user = db.get_user(user_id)
+    user = await db_call(db.get_user, user_id)
 
     if user is None:
         is_admin = user_id == ADMIN_ID
-        db.create_user(user_id, name, username=tg_user.get("username"), status="approved", is_admin=is_admin)
-        db.create_relationship(user_id)
-        user = db.get_user(user_id)
+        await db_call(db.create_user, user_id, name, username=tg_user.get("username"), status="approved", is_admin=is_admin)
+        await db_call(db.create_relationship, user_id)
+        user = await db_call(db.get_user, user_id)
 
     if user["status"] == "banned":
         return {"status": "banned", "name": user["name"]}
 
     if not user["relationship_id"]:
-        db.create_relationship(user_id)
-        user = db.get_user(user_id)
+        await db_call(db.create_relationship, user_id)
+        user = await db_call(db.get_user, user_id)
 
-    db.touch_user_activity(user_id, tg_user.get("username"))
+    await db_call(db.touch_user_activity, user_id, tg_user.get("username"))
     paired = bool(user["relationship_id"])
     return {"status": "approved", "name": user["name"], "paired": paired}
 
@@ -152,15 +190,15 @@ def pair_create(x_telegram_init_data: str = Header(None)):
 
 @app.post("/api/pair/join")
 async def pair_join(code: str = Form(...), x_telegram_init_data: str = Header(None)):
-    user = require_approved_user(x_telegram_init_data)
-    if db.partner_of(user["user_id"]):
+    user = await db_call(require_approved_user, x_telegram_init_data)
+    if await db_call(db.partner_of, user["user_id"]):
         raise HTTPException(400, "Siz allaqachon sherigingiz bilan bog'langansiz")
-    rel = db.join_relationship(user["user_id"], code)
+    rel = await db_call(db.join_relationship, user["user_id"], code)
     if rel == "own_code":
         raise HTTPException(400, "Bu sizning o'z kodingiz")
     if not rel:
         raise HTTPException(400, "Kod noto'g'ri yoki band")
-    partner = db.partner_of(user["user_id"])
+    partner = await db_call(db.partner_of, user["user_id"])
     if partner:
         try:
             await bot_app.bot.send_message(partner["user_id"], f"💞 {user['name']} taklifingizni qabul qildi! Endi bog'langansiz.")
@@ -248,9 +286,9 @@ def api_state(x_telegram_init_data: str = Header(None)):
 
 @app.post("/api/mood")
 async def api_set_mood(emoji: str = Form(...), note: str = Form(""), x_telegram_init_data: str = Header(None)):
-    user = require_paired_user(x_telegram_init_data)
-    db.set_mood(user["relationship_id"], user["user_id"], today(), emoji, note or None)
-    partner = db.partner_of(user["user_id"])
+    user = await db_call(require_paired_user, x_telegram_init_data)
+    await db_call(db.set_mood, user["relationship_id"], user["user_id"], today(), emoji, note or None)
+    partner = await db_call(db.partner_of, user["user_id"])
     if partner:
         try:
             await bot_app.bot.send_message(partner["user_id"], f"😊 Sherigingiz kayfiyatini belgiladi: {emoji}")
@@ -278,13 +316,13 @@ async def api_add_journal(
     photo: UploadFile = File(None),
     x_telegram_init_data: str = Header(None),
 ):
-    user = require_paired_user(x_telegram_init_data)
+    user = await db_call(require_paired_user, x_telegram_init_data)
     photo_url = None
     if photo is not None and photo.filename:
         content = await photo.read()
         photo_url = await storage.upload_bytes(content, photo.filename, photo.content_type)
-    db.add_journal(user["relationship_id"], user["user_id"], text, photo_url)
-    partner = db.partner_of(user["user_id"])
+    await db_call(db.add_journal, user["relationship_id"], user["user_id"], text, photo_url)
+    partner = await db_call(db.partner_of, user["user_id"])
     if partner:
         try:
             await bot_app.bot.send_message(partner["user_id"], "📔 Kundalikka yangi xotira qo'shildi!")
@@ -313,9 +351,9 @@ def api_journal(x_telegram_init_data: str = Header(None)):
 
 @app.post("/api/plans")
 async def api_add_plan(text: str = Form(...), x_telegram_init_data: str = Header(None)):
-    user = require_paired_user(x_telegram_init_data)
-    db.add_plan(user["relationship_id"], user["user_id"], text)
-    partner = db.partner_of(user["user_id"])
+    user = await db_call(require_paired_user, x_telegram_init_data)
+    await db_call(db.add_plan, user["relationship_id"], user["user_id"], text)
+    partner = await db_call(db.partner_of, user["user_id"])
     if partner:
         try:
             await bot_app.bot.send_message(partner["user_id"], "📝 Yangi reja qo'shildi!")
@@ -341,10 +379,10 @@ def api_plan_done(plan_id: int, x_telegram_init_data: str = Header(None)):
 
 @app.post("/api/question/answer")
 async def api_answer_question(text: str = Form(...), x_telegram_init_data: str = Header(None)):
-    user = require_paired_user(x_telegram_init_data)
+    user = await db_call(require_paired_user, x_telegram_init_data)
     q_idx = date.today().timetuple().tm_yday % len(QUESTIONS)
-    db.save_answer(user["user_id"], today(), QUESTIONS[q_idx], text)
-    partner = db.partner_of(user["user_id"])
+    await db_call(db.save_answer, user["user_id"], today(), QUESTIONS[q_idx], text)
+    partner = await db_call(db.partner_of, user["user_id"])
     if partner:
         try:
             await bot_app.bot.send_message(partner["user_id"], "❓ Sherigingiz bugungi savolga javob berdi!")
@@ -357,8 +395,8 @@ async def api_answer_question(text: str = Form(...), x_telegram_init_data: str =
 
 @app.post("/api/love_note")
 async def api_love_note(text: str = Form(...), x_telegram_init_data: str = Header(None)):
-    user = require_paired_user(x_telegram_init_data)
-    partner = db.partner_of(user["user_id"])
+    user = await db_call(require_paired_user, x_telegram_init_data)
+    partner = await db_call(db.partner_of, user["user_id"])
     if not partner:
         raise HTTPException(400, "Sherigingiz hali qo'shilmagan")
     try:

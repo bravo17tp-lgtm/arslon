@@ -80,7 +80,15 @@ Xohlagan boshqa Telegram foydalanuvchisi ham botga kirib, o'z alohida juftligini
 
 ## ⚠️ Muhim eslatmalar
 
-**Bepul tarifning bitta cheklovi bor:**
+**Bot endi webhook rejimida ishlaydi** (polling emas) — bu shuni anglatadiki, Telegram'dan kelgan har bir xabar to'g'ridan-to'g'ri serverga yuboriladi. Bunday qilishning afzalligi: agar Render bepul tarifi serverni uxlatib qo'ygan bo'lsa ham, kiruvchi xabarning o'zi serverni avtomatik "uyg'otadi" (polling'da esa server avval uyg'onishi kerak edi, aks holda xabarlar umuman qabul qilinmasdi).
+
+**To'liq uxlab qolishning oldini olish uchun (tavsiya etiladi):**
+Render bepul tarifida 15 daqiqa faollik bo'lmasa server baribir uxlaydi, va birinchi uyg'onish 30-60 soniya vaqt olishi mumkin. Buni butunlay oldini olish uchun, bepul tashqi "keep-alive" xizmatidan foydalaning:
+1. [cron-job.org](https://cron-job.org) yoki [UptimeRobot](https://uptimerobot.com) saytida bepul ro'yxatdan o'ting
+2. Yangi job/monitor yarating: manzil = `https://sizning-app-manzilingiz.onrender.com/health`, interval = har 10 daqiqada
+3. Shu bilan server hech qachon uxlamaydi, va bot doim tez javob beradi
+
+**Bepul tarifning qolgan cheklovi:**
 
 - **Uyquga ketish** — Render'ning bepul web-service tarifida 15 daqiqa faollik bo'lmasa, server uxlaydi. Keyingi ochilishda 30-60 soniya kutish kerak bo'ladi. Ma'lumot yo'qolmaydi, faqat server "uyg'onishi" kerak.
 - Ma'lumotlar bazasi va media fayllar endi Supabase'da (PostgreSQL + Storage) saqlanadi — Render qayta deploy qilinganda, server yangilanganda ham hech narsa yo'qolmaydi. Supabase bepul tarifi 500MB baza + 1GB fayl xotirasini beradi; 7 kun faollik bo'lmasa loyiha "uxlab qoladi" (Supabase dashboard'da bir marta kirib uyg'otish kifoya).

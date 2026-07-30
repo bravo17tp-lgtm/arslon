@@ -7,7 +7,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@300;400;500;600;700&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#0f1c2e; --bg2:#16273d; --bg3:#1c3149;
@@ -40,12 +40,16 @@
   .spinner{ width:28px; height:28px; border-radius:50%; border:3px solid var(--line-strong); border-top-color:var(--gold); animation:spin 0.8s linear infinite; margin-bottom:18px; }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 
-  /* Header */
-  header{ display:flex; align-items:flex-start; justify-content:space-between; padding:20px 20px 6px; }
-  .h-title{ font-size:19px; letter-spacing:-0.01em; }
-  .h-title span{ color:var(--gold); }
-  .h-greet{ font-size:12px; color:var(--cream-faint); margin-top:3px; letter-spacing:0.01em; }
-  .gear-btn{ background:rgba(243,234,217,0.05); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border:1px solid var(--line-strong); width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:17px; color:var(--cream-dim); box-shadow:0 4px 14px rgba(0,0,0,0.18); transition:transform .15s cubic-bezier(.3,1.5,.5,1), box-shadow .15s ease; }
+  /* Header — profil satri */
+  .profile-strip{ display:flex; align-items:center; justify-content:space-between; padding:18px 16px 4px; }
+  .ps-side{ display:flex; align-items:center; gap:8px; background:none; max-width:34%; }
+  .ps-side-right{ flex-direction:row-reverse; }
+  .ps-avatar{ width:34px; height:34px; border-radius:50%; flex-shrink:0; background:var(--gold-soft); border:1.5px solid var(--gold-dim); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-size:13px; font-weight:600; color:var(--gold); overflow:hidden; }
+  .ps-avatar img{ width:100%; height:100%; object-fit:cover; }
+  .ps-name{ font-size:12.5px; color:var(--cream-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .ps-heart{ color:#e0707f; font-size:10px; }
+  .ps-logo{ font-family:'Dancing Script',cursive; font-weight:700; font-size:32px; color:var(--gold); position:relative; line-height:1; padding:0 6px; }
+  .ps-logo-spark{ position:absolute; top:-6px; right:-2px; font-size:11px; color:var(--gold-dim); animation:twinkle 2.4s ease-in-out infinite; }
   .gear-btn:active{ transform:scale(0.88) rotate(16deg); box-shadow:0 2px 6px rgba(0,0,0,0.14); }
 
   .view{ padding:14px 20px 10px; }
@@ -63,37 +67,93 @@
 
   .emoji-img{ height:1em; width:1em; vertical-align:-0.15em; object-fit:contain; display:inline-block; }
   .card h3 .emoji-img{ height:16px; width:16px; vertical-align:-2px; }
-  nav.bottom button .ic .emoji-img{ height:20px; width:20px; }
+  nav.bottom button .ic .emoji-img{ height:17px; width:17px; }
   .gear-btn .emoji-img{ height:17px; width:17px; }
 
   /* Hero (together counter) — redesigned */
-  .hero{ background:linear-gradient(170deg,var(--bg3),var(--bg2)); border:1px solid var(--line-strong); border-radius:24px; padding:30px 20px 24px; text-align:center; margin-bottom:16px; position:relative; overflow:hidden; box-shadow:0 20px 40px -20px rgba(0,0,0,0.45), 0 2px 0 rgba(255,255,255,0.02) inset; }
-  .hero::before{ content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 0%, rgba(212,175,106,0.12), transparent 60%); pointer-events:none; }
-  .hero::after{ content:''; position:absolute; width:200px; height:200px; border-radius:50%; background:radial-gradient(circle, rgba(224,149,140,0.10), transparent 70%); bottom:-100px; left:-60px; pointer-events:none; }
-  .hero-heart{ width:30px; height:30px; margin:0 auto 6px; animation:heartbeat 1.8s ease-in-out infinite; filter:drop-shadow(0 0 10px rgba(224,149,140,0.45)); }
-  @keyframes heartbeat{ 0%,100%{ transform:scale(1); } 15%{ transform:scale(1.18); } 30%{ transform:scale(1); } 45%{ transform:scale(1.1); } 60%{ transform:scale(1); } }
-  .hero-label{ font-size:11px; letter-spacing:0.16em; text-transform:uppercase; color:var(--gold-dim); font-weight:600; margin-bottom:16px; }
+  .hero{ background:linear-gradient(165deg, #3a0f1e 0%, #200a14 55%, #150810 100%); border:1px solid rgba(232,120,140,0.22); border-radius:26px; padding:22px 16px 20px; text-align:center; margin-bottom:16px; position:relative; overflow:hidden; box-shadow:0 24px 50px -22px rgba(120,10,40,0.55), 0 2px 0 rgba(255,255,255,0.03) inset; }
+  .hero::before{ content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 6%, rgba(232,84,120,0.24), transparent 55%), radial-gradient(1.5px 1.5px at 10% 15%, #fff, transparent), radial-gradient(1px 1px at 25% 30%, #fff, transparent), radial-gradient(1.5px 1.5px at 80% 10%, #fff, transparent), radial-gradient(1px 1px at 65% 25%, #fff, transparent), radial-gradient(1px 1px at 92% 35%, #fff, transparent), radial-gradient(1.5px 1.5px at 40% 8%, #fff, transparent); background-repeat:no-repeat; opacity:0.9; pointer-events:none; }
 
-  .together-grid{ display:flex; align-items:flex-end; justify-content:center; gap:2px; position:relative; z-index:1; }
-  .t-unit{ display:flex; flex-direction:column; align-items:center; min-width:58px; }
-  .t-num{ font-family:'Fraunces',serif; font-size:38px; font-weight:700; color:var(--gold); line-height:1; font-variant-numeric:tabular-nums; text-shadow:0 0 24px rgba(212,175,106,0.35); transition:transform .2s ease; }
+  .hero-bell{ position:absolute; top:16px; right:16px; width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; font-size:13px; z-index:2; }
+  .hero-bell::after{ content:''; position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%; background:#ff5d6c; box-shadow:0 0 0 2px #200a14; }
+
+  .hero-heart-wrap{ position:relative; width:40px; height:40px; margin:0 auto 2px; z-index:1; }
+  .hero-heart{ width:26px; height:26px; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); animation:heartbeat 1.8s ease-in-out infinite; filter:drop-shadow(0 0 14px rgba(255,110,150,0.65)); }
+  @keyframes heartbeat{ 0%,100%{ transform:translate(-50%,-50%) scale(1); } 15%{ transform:translate(-50%,-50%) scale(1.18); } 30%{ transform:translate(-50%,-50%) scale(1); } 45%{ transform:translate(-50%,-50%) scale(1.1); } 60%{ transform:translate(-50%,-50%) scale(1); } }
+  .sparkle{ position:absolute; color:#ffd7e2; font-size:9px; opacity:0; animation:twinkle 2.4s ease-in-out infinite; }
+  .sparkle:nth-child(2){ top:-6px; left:2px; animation-delay:0s; }
+  .sparkle:nth-child(3){ top:4px; right:-10px; font-size:7px; animation-delay:0.6s; }
+  .sparkle:nth-child(4){ bottom:-4px; left:-8px; font-size:7px; animation-delay:1.2s; }
+  .sparkle:nth-child(5){ bottom:0; right:0; font-size:8px; animation-delay:1.8s; }
+  @keyframes twinkle{ 0%,100%{ opacity:0; transform:scale(0.4); } 50%{ opacity:1; transform:scale(1); } }
+
+  .hero-label{ font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:#f3b6c4; font-weight:700; margin-bottom:4px; position:relative; z-index:1; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .hero-label .hl-heart{ font-size:9px; color:#e0707f; }
+  .hero-cursive{ font-family:'Dancing Script',cursive; font-weight:600; font-size:19px; color:#f6d9de; margin-bottom:16px; position:relative; z-index:1; }
+
+  .together-grid{ display:flex; align-items:flex-end; justify-content:center; gap:0; position:relative; z-index:1; }
+  .t-unit{ display:flex; flex-direction:column; align-items:center; flex:1; min-width:0; }
+  .t-num{ font-family:'Fraunces',serif; font-size:25px; font-weight:700; color:#fff5f7; line-height:1; font-variant-numeric:tabular-nums; text-shadow:0 0 20px rgba(255,110,150,0.45); transition:transform .2s ease; }
   .t-num.bump{ animation:numBump .35s cubic-bezier(.3,1.6,.5,1); }
   @keyframes numBump{ 0%{ transform:scale(1); } 40%{ transform:scale(1.22); } 100%{ transform:scale(1); } }
-  .t-label{ font-size:10.5px; color:var(--cream-faint); text-transform:uppercase; letter-spacing:0.08em; margin-top:5px; }
-  .t-sep{ font-family:'Fraunces',serif; font-size:26px; color:var(--line-strong); padding-bottom:16px; }
+  .t-label{ font-size:8.5px; color:#e8a7b8; text-transform:uppercase; letter-spacing:0.06em; margin-top:5px; }
+  .t-sep{ width:1px; height:26px; background:rgba(255,255,255,0.14); align-self:center; margin-bottom:12px; }
 
-  .together-secs{ display:flex; align-items:center; justify-content:center; gap:7px; font-size:12px; color:var(--cream-faint); margin-top:16px; font-variant-numeric:tabular-nums; letter-spacing:0.02em; }
-  .live-dot{ width:6px; height:6px; border-radius:50%; background:#7cc98a; box-shadow:0 0 0 0 rgba(124,201,138,0.6); animation:livepulse 1.6s ease-out infinite; }
-  @keyframes livepulse{ 0%{ box-shadow:0 0 0 0 rgba(124,201,138,0.55); } 70%{ box-shadow:0 0 0 7px rgba(124,201,138,0); } 100%{ box-shadow:0 0 0 0 rgba(124,201,138,0); } }
+  .hero-scene{ position:relative; height:70px; margin:16px -16px -20px; overflow:hidden; }
+  .hero-sun{ position:absolute; left:50%; bottom:6px; transform:translateX(-50%); width:56px; height:56px; border-radius:50%; background:radial-gradient(circle, rgba(255,205,150,0.95), rgba(255,150,110,0.5) 60%, transparent 75%); }
+  .hero-mtn1{ position:absolute; left:0; right:0; bottom:0; height:46px; background:#170912; clip-path:polygon(0% 100%,0% 65%,14% 42%,28% 62%,44% 30%,58% 55%,74% 22%,88% 48%,100% 32%,100% 100%); }
+  .hero-mtn2{ position:absolute; left:0; right:0; bottom:0; height:30px; background:#0d060c; clip-path:polygon(0% 100%,0% 78%,18% 52%,34% 72%,52% 46%,68% 68%,84% 42%,100% 60%,100% 100%); }
+  .hero-water{ position:absolute; left:0; right:0; bottom:0; height:10px; background:linear-gradient(180deg, rgba(255,180,140,0.25), transparent); }
 
-  .quote{ font-family:'Fraunces',serif; font-style:italic; font-weight:400; font-size:14px; color:var(--cream-dim); margin-top:18px; line-height:1.55; position:relative; z-index:1; padding:0 6px; }
-  .quote::before{ content:'“'; color:var(--gold-dim); font-size:22px; margin-right:2px; font-family:'Fraunces',serif; }
-  .quote::after{ content:'”'; color:var(--gold-dim); font-size:22px; margin-left:2px; font-family:'Fraunces',serif; }
+  .live-pill{ display:inline-flex; align-items:center; gap:7px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14); border-radius:30px; padding:7px 16px; font-size:11.5px; color:#f0dce0; margin-top:14px; position:relative; z-index:2; }
+  .live-pill .live-dot{ width:6px; height:6px; border-radius:50%; background:#5fd97a; box-shadow:0 0 0 0 rgba(95,217,122,0.6); animation:livepulse 1.6s ease-out infinite; }
+  @keyframes livepulse{ 0%{ box-shadow:0 0 0 0 rgba(95,217,122,0.55); } 70%{ box-shadow:0 0 0 7px rgba(95,217,122,0); } 100%{ box-shadow:0 0 0 0 rgba(95,217,122,0); } }
+
+  .quote{ font-family:'Fraunces',serif; font-style:italic; font-weight:400; font-size:14px; color:#f3d6dd; margin-top:18px; line-height:1.55; position:relative; z-index:1; padding:0 6px; }
+  .quote::before{ content:'“'; color:#e88ba0; font-size:22px; margin-right:2px; font-family:'Fraunces',serif; }
+  .quote::after{ content:'”'; color:#e88ba0; font-size:22px; margin-left:2px; font-family:'Fraunces',serif; }
 
   .mood-row{ display:flex; gap:12px; }
-  .mood-box{ flex:1; background:rgba(243,234,217,0.04); border:1px solid var(--line); border-radius:14px; padding:14px; text-align:center; transition:border-color .25s ease, background .25s ease, transform .2s ease; }
+  .mood-box{ flex:1; background:rgba(243,234,217,0.04); border:1px solid var(--line); border-radius:18px; padding:16px 14px; text-align:center; transition:border-color .25s ease, background .25s ease, transform .2s ease; }
   .mood-box.set{ border-color:var(--gold-dim); background:var(--gold-soft); box-shadow:0 0 18px -6px rgba(212,175,106,0.35); }
   .mood-box .who{ font-size:11px; color:var(--cream-faint); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; }
+
+  /* Ikki ustunli qatr: Kayfiyat + Yaqin kun */
+  .row2{ display:flex; gap:12px; margin-bottom:16px; }
+  .card-sm{ flex:1; margin-bottom:0; padding:16px 14px; display:flex; flex-direction:column; }
+  .card-sm h3{ font-size:12px; }
+  .mood-row-sm{ display:flex; justify-content:space-around; margin:10px 0 14px; }
+  .mood-circle-wrap{ display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .mood-circle{ width:52px; height:52px; border-radius:50%; border:2px solid var(--line-strong); display:flex; align-items:center; justify-content:center; font-size:24px; background:rgba(243,234,217,0.03); transition:border-color .25s ease, transform .25s cubic-bezier(.3,1.6,.5,1); }
+  .mood-circle.set{ border-color:var(--gold); background:var(--gold-soft); transform:scale(1.05); }
+  .mood-circle-wrap .who{ font-size:10.5px; color:var(--cream-faint); }
+
+  .pill-btn{ margin-top:auto; background:rgba(212,175,106,0.08); border:1px solid var(--line-strong); color:var(--cream-dim); border-radius:30px; padding:10px 14px; font-size:12px; display:flex; align-items:center; justify-content:center; gap:4px; transition:transform .15s ease, background .2s ease; }
+  .pill-btn:active{ transform:scale(0.96); }
+  .pill-btn-outline{ background:rgba(212,175,106,0.06); border:1px solid var(--gold-dim); color:var(--gold); width:100%; }
+
+  .upcoming-row{ display:flex; align-items:center; gap:12px; margin:8px 0 14px; }
+  .upcoming-emoji{ flex-shrink:0; }
+  .upcoming-title{ font-size:12.5px; color:var(--cream-dim); }
+  .upcoming-days{ font-family:'Fraunces',serif; font-size:16px; font-weight:600; color:#e88ba0; margin-top:2px; }
+  .upcoming-date{ font-size:11px; color:var(--cream-faint); margin-top:2px; }
+  .upcoming-empty{ font-size:12px; color:var(--cream-faint); font-style:italic; margin:16px 0; text-align:center; flex:1; }
+
+  /* Kun savoli — yangi joylashuv */
+  .q-mark-icon{ display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--coral-soft); color:var(--coral); font-family:'Fraunces',serif; font-size:13px; font-weight:700; margin-right:2px; }
+  .daily-tag{ margin-left:auto; background:rgba(212,175,106,0.1); border:1px solid var(--line-strong); border-radius:20px; padding:4px 10px; font-size:10.5px; color:var(--gold); display:inline-flex; align-items:center; gap:4px; }
+  .q-body-row{ display:flex; align-items:flex-start; gap:10px; }
+  .q-body-text{ flex:1; min-width:0; }
+  .q-envelope{ flex-shrink:0; font-size:44px; filter:drop-shadow(0 6px 14px rgba(0,0,0,0.35)); }
+
+  /* So'nggi xotira */
+  .dots-btn{ margin-left:auto; background:none; color:var(--cream-faint); font-size:16px; padding:2px 6px; }
+  .memory-row{ display:flex; gap:12px; align-items:center; margin:10px 0 14px; }
+  .memory-thumb{ width:64px; height:64px; border-radius:14px; object-fit:cover; flex-shrink:0; }
+  .memory-thumb-empty{ display:flex; align-items:center; justify-content:center; background:var(--gold-soft); font-size:22px; }
+  .memory-text{ flex:1; min-width:0; }
+  .memory-body{ font-size:13px; color:var(--cream); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .memory-date{ font-size:11px; color:var(--cream-faint); margin-top:5px; }
   .mood-box .emo{ font-size:28px; display:inline-block; transition:transform .3s cubic-bezier(.3,1.6,.5,1); }
   .mood-box.set .emo{ transform:scale(1.22); }
   .mood-box .emo.empty{ font-size:13px; color:var(--cream-faint); font-style:italic; }
@@ -107,6 +167,11 @@
   .card-accent::before{ content:''; position:absolute; left:0; top:16px; bottom:16px; width:3px; border-radius:0 3px 3px 0; background:linear-gradient(180deg, var(--gold), transparent); }
   .q-text{ font-family:'Fraunces',serif; font-style:italic; font-size:15px; margin-bottom:12px; color:var(--cream); }
   .answer-line{ font-size:13px; color:var(--cream-dim); margin-top:6px; padding-top:8px; border-top:1px solid var(--line); }
+
+  .q-input-row{ display:flex; align-items:center; gap:10px; }
+  .q-input-row input[type=text]{ flex:1; margin:0; }
+  .q-send-btn{ flex-shrink:0; width:44px; height:44px; border-radius:50%; background:var(--gold); color:#1a2233; font-size:17px; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 20px -8px rgba(212,175,106,0.55); transition:transform .15s cubic-bezier(.3,1.6,.5,1); }
+  .q-send-btn:active{ transform:scale(0.88); }
 
   .success-burst{ display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px 0 4px; }
   .success-burst .check{ width:46px; height:46px; border-radius:50%; background:var(--gold-soft); border:1.5px solid var(--gold-dim); display:flex; align-items:center; justify-content:center; font-size:20px; color:var(--gold); animation:successPop .5s cubic-bezier(.3,1.6,.5,1); }
@@ -161,8 +226,8 @@
   /* Bottom nav */
   nav.bottom{ position:fixed; bottom:0; left:0; right:0; background:rgba(15,28,46,0.92); backdrop-filter:blur(14px); border-top:1px solid var(--line); display:flex; justify-content:center; z-index:30; padding-bottom:env(safe-area-inset-bottom); }
   nav.bottom .inner{ max-width:520px; width:100%; display:flex; }
-  nav.bottom button{ flex:1; background:none; padding:12px 4px 10px; display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--cream-faint); font-size:10.5px; }
-  nav.bottom button .ic{ font-size:19px; }
+  nav.bottom button{ flex:1; background:none; padding:10px 2px 10px; display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--cream-faint); font-size:9.5px; line-height:1.15; text-align:center; }
+  nav.bottom button .ic{ font-size:17px; }
   nav.bottom button.active{ color:var(--gold); }
 
   /* Modal (settings) */
@@ -227,15 +292,16 @@
     <div class="skel skel-card"></div>
   </div>
   <div id="main" style="display:none;">
-    <header>
-      <div>
-        <div class="h-title">Sevgi<span>.</span></div>
-        <div class="h-greet" id="headerGreet"></div>
-      </div>
-      <div style="display:flex; align-items:center; gap:8px;">
-        <button class="gear-btn avatar-btn" id="profileBtn"></button>
-        <button class="gear-btn" id="settingsBtn"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/2699-fe0f.png" alt="" onerror="this.outerHTML='⚙️'"></button>
-      </div>
+    <header class="profile-strip">
+      <button class="ps-side" id="profileBtn">
+        <span class="ps-avatar" id="psMyAvatar">?</span>
+        <span class="ps-name">Siz <span class="ps-heart">♥</span></span>
+      </button>
+      <div class="ps-logo">Sevgi<span class="ps-logo-spark">✦</span></div>
+      <button class="ps-side ps-side-right" id="partnerStripBtn">
+        <span class="ps-name"><span class="ps-heart">♥</span> <span id="psPartnerName">Sherik</span></span>
+        <span class="ps-avatar" id="psPartnerAvatar">?</span>
+      </button>
     </header>
 
     <div id="view-home" class="view"></div>
@@ -246,11 +312,12 @@
 
     <nav class="bottom">
       <div class="inner">
-        <button data-tab="home" class="active"><span class="ic"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f3e1.png" alt="" onerror="this.outerHTML='🏡'"></span>Bosh</button>
+        <button data-tab="home" class="active"><span class="ic"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f3e1.png" alt="" onerror="this.outerHTML='🏡'"></span>Bosh sahifa</button>
         <button data-tab="journal"><span class="ic"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f4d4.png" alt="" onerror="this.outerHTML='📔'"></span>Kundalik</button>
         <button data-tab="mood"><span class="ic"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f60a.png" alt="" onerror="this.outerHTML='😊'"></span>Kayfiyat</button>
         <button data-tab="plans"><span class="ic"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f4dd.png" alt="" onerror="this.outerHTML='📝'"></span>Rejalar</button>
-        <button data-tab="love"><span class="ic"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f48c.png" alt="" onerror="this.outerHTML='💌'"></span>Sevgi</button>
+        <button data-tab="love"><span class="ic"><img class="emoji-img" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f48c.png" alt="" onerror="this.outerHTML='💌'"></span>Sevgi burchagi</button>
+        <button data-tab="settings" id="navSettingsBtn"><span class="ic">⚙️</span>Sozlamalar</button>
       </div>
     </nav>
   </div>
@@ -555,10 +622,7 @@ async function boot() {
     setupNav();
     setupSettings();
     setupProfile();
-    if (STATE?.name) {
-      document.getElementById("profileBtn").textContent = STATE.name.trim()[0]?.toUpperCase() || "?";
-      setHeaderGreeting(STATE.name);
-    }
+    if (STATE?.name) updateProfileStrip(STATE.name, STATE.partner_name);
   } catch (err) {
     renderGate("⚠️", "Xatolik yuz berdi", "Iltimos, Telegram ichida qayta oching.", true);
   }
@@ -577,6 +641,10 @@ function renderGate(emoji, title, text, showRetry) {
 // ---------- Tab navigatsiyasi ----------
 function setupNav() {
   document.querySelectorAll("nav.bottom button").forEach(btn => {
+    if (btn.dataset.tab === "settings") {
+      btn.onclick = () => { haptic(); openSettingsModal(); };
+      return;
+    }
     btn.onclick = () => { haptic(); switchTab(btn.dataset.tab); };
   });
 }
@@ -610,60 +678,119 @@ function computeTogetherLive(anniversaryISO) {
 
 let liveTimer = null;
 async function loadHome() {
-  STATE = await api("/api/state");
+  const [state, journalEntries] = await Promise.all([
+    api("/api/state"),
+    api("/api/journal").catch(() => []),
+  ]);
+  STATE = state;
   const el = document.getElementById("view-home");
   const myMoodSet = !!STATE.my_mood;
   const partnerMoodSet = !!STATE.partner_mood;
+  const latestMemory = (journalEntries || [])[0];
+
   el.innerHTML = `
     <div class="hero">
-      <img class="hero-heart" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f497.png" alt="" onerror="this.outerHTML='💗'">
-      <div class="hero-label">Birgamiz</div>
+      <div class="hero-bell">${e("🔔",13)}</div>
+      <div class="hero-heart-wrap">
+        <img class="hero-heart" src="https://cdn.jsdelivr.net/gh/iamcal/emoji-data@master/img-apple-64/1f497.png" alt="" onerror="this.outerHTML='💗'">
+        <span class="sparkle">✦</span><span class="sparkle">✦</span><span class="sparkle">✦</span><span class="sparkle">✦</span>
+      </div>
+      <div class="hero-label"><span class="hl-heart">♥</span> Birga o'tkazilgan vaqt <span class="hl-heart">♥</span></div>
+      <div class="hero-cursive">Har soniya — bizniki 💕</div>
       <div class="together-grid" id="togetherMain"></div>
-      <div class="together-secs" id="togetherSecs"><span class="live-dot"></span><span id="togetherSecsText"></span></div>
+      <div class="hero-scene">
+        <div class="hero-sun"></div>
+        <div class="hero-mtn1"></div>
+        <div class="hero-mtn2"></div>
+        <div class="hero-water"></div>
+      </div>
+      <div class="live-pill"><span class="live-dot"></span> Jonli hisoblash</div>
       <div class="quote">${STATE.quote}</div>
     </div>
 
-    ${STATE.upcoming_special ? `<div class="special-strip">${e("🎉",18)} <b>${STATE.upcoming_special.label}</b> — ${STATE.upcoming_special.days_left} kun qoldi</div>` : ""}
+    <div class="row2">
+      <div class="card card-sm">
+        <h3>${e("😊")} Bugungi kayfiyat</h3>
+        <div class="mood-row-sm">
+          <div class="mood-circle-wrap">
+            <div class="mood-circle ${myMoodSet ? "set" : ""}">${myMoodSet ? e(STATE.my_mood, 26) : "?"}</div>
+            <div class="who">Siz</div>
+          </div>
+          <div class="mood-circle-wrap">
+            <div class="mood-circle ${partnerMoodSet ? "set" : ""}">${partnerMoodSet ? e(STATE.partner_mood, 26) : "?"}</div>
+            <div class="who">${STATE.partner_name || "Sherik"}</div>
+          </div>
+        </div>
+        <button class="pill-btn" onclick="switchTab('mood')">Kayfiyatni belgilash ${e("›",14)}</button>
+      </div>
 
-    <div class="card">
-      <h3>${e("😊")} Bugungi kayfiyat</h3>
-      <div class="mood-row">
-        <div class="mood-box ${myMoodSet ? "set" : ""}">
-          <div class="who">Siz</div>
-          <div class="emo ${myMoodSet ? "" : "empty"}">${myMoodSet ? e(STATE.my_mood, 30) : "Hali belgilanmagan"}</div>
-        </div>
-        <div class="mood-box ${partnerMoodSet ? "set" : ""}">
-          <div class="who">${STATE.partner_name || "Sherik"}</div>
-          <div class="emo ${partnerMoodSet ? "" : "empty"}">${partnerMoodSet ? e(STATE.partner_mood, 30) : (STATE.partner_name ? "Hali belgilamagan 💭" : "Sherik kutilmoqda")}</div>
-        </div>
+      <div class="card card-sm">
+        <h3>${e("📅")} Yaqin kun <span style="margin-left:auto;">${e("💗",14)}</span></h3>
+        ${STATE.upcoming_special ? `
+          <div class="upcoming-row">
+            <span class="upcoming-emoji">${e("🎈",22)}</span>
+            <div>
+              <div class="upcoming-title">${STATE.upcoming_special.label}</div>
+              <div class="upcoming-days">${STATE.upcoming_special.days_left} kun qoldi</div>
+              <div class="upcoming-date">${fmtDateOnly(STATE.upcoming_special.date)}</div>
+            </div>
+          </div>
+        ` : `<div class="upcoming-empty">Hali maxsus kun qo'shilmagan</div>`}
+        <button class="pill-btn" onclick="openSettingsModal()">Barcha kunlar ${e("›",14)}</button>
       </div>
     </div>
 
     <div class="card card-accent">
-      <h3>${e("❓")} Kun savoli</h3>
-      <div class="q-text">${STATE.question}</div>
-      <div id="qAnswerArea">
-      ${STATE.my_answer ? `
-        <div class="answer-line"><b>Siz:</b> ${escapeHtml(STATE.my_answer)}</div>
-        ${STATE.partner_answer ? `<div class="answer-line"><b>${STATE.partner_name || "Sherik"}:</b> ${escapeHtml(STATE.partner_answer)}</div>` : `<div class="answer-line">${STATE.partner_name || "Sherik"} hali javob bermagan.</div>`}
-      ` : `
-        <textarea id="qAnswerInput" placeholder="Javobingizni yozing..." rows="2"></textarea>
-        <button class="btn btn-gold" style="margin-top:8px;" id="qAnswerBtn">Javob berish</button>
-      `}
+      <h3><span class="q-mark-icon">"</span> Bugungi savol ${STATE.my_answer ? "" : `<span class="daily-tag">${e("✨",12)} Kunlik an'ana</span>`}</h3>
+      <div class="q-body-row">
+        <div class="q-body-text">
+          <div class="q-text">${STATE.question}</div>
+          <div id="qAnswerArea">
+          ${STATE.my_answer ? `
+            <div class="answer-line"><b>Siz:</b> ${escapeHtml(STATE.my_answer)}</div>
+            ${STATE.partner_answer ? `<div class="answer-line"><b>${STATE.partner_name || "Sherik"}:</b> ${escapeHtml(STATE.partner_answer)}</div>` : `<div class="answer-line">${STATE.partner_name || "Sherik"} hali javob bermagan.</div>`}
+          ` : `
+            <button class="pill-btn pill-btn-outline" id="qAnswerOpenBtn">${e("✏️",14)} Javob yozish ${e("›",14)}</button>
+          `}
+          </div>
+        </div>
+        <div class="q-envelope">${e("💌",46)}</div>
       </div>
     </div>
+
+    ${latestMemory ? `
+    <div class="card">
+      <h3>${e("🖼️")} So'nggi xotira <button class="dots-btn" onclick="switchTab('journal')">⋮</button></h3>
+      <div class="memory-row">
+        ${latestMemory.photo_url ? `<img class="memory-thumb" src="${latestMemory.photo_url}">` : `<div class="memory-thumb memory-thumb-empty">${e("💌",22)}</div>`}
+        <div class="memory-text">
+          <div class="memory-body">${escapeHtml(latestMemory.text || "")}</div>
+          <div class="memory-date">${fmtDate(latestMemory.created_at)}</div>
+        </div>
+      </div>
+      <button class="pill-btn pill-btn-outline" onclick="switchTab('journal')">${e("✏️",14)} Barcha xotiralar ${e("›",14)}</button>
+    </div>
+    ` : ""}
   `;
 
   if (!STATE.my_answer) {
-    document.getElementById("qAnswerBtn").onclick = async () => {
-      const text = document.getElementById("qAnswerInput").value.trim();
-      if (!text) return;
-      haptic();
-      await api("/api/question/answer", { method:"POST", body: formBody({text}) });
+    document.getElementById("qAnswerOpenBtn").onclick = () => {
       const area = document.getElementById("qAnswerArea");
-      area.innerHTML = `<div class="success-burst"><div class="check">${e("✅",20)}</div><div class="msg">Javobingiz saqlandi</div></div>`;
-      toast(`Javobingiz saqlandi ${e("💌",16)}`);
-      setTimeout(loadHome, 900);
+      area.innerHTML = `
+        <div class="q-input-row">
+          <input type="text" id="qAnswerInput" placeholder="Javobingizni yozing...">
+          <button class="q-send-btn" id="qAnswerBtn">${e("➕",18)}</button>
+        </div>`;
+      document.getElementById("qAnswerInput").focus();
+      document.getElementById("qAnswerBtn").onclick = async () => {
+        const text = document.getElementById("qAnswerInput").value.trim();
+        if (!text) return;
+        haptic();
+        await api("/api/question/answer", { method:"POST", body: formBody({text}) });
+        area.innerHTML = `<div class="success-burst"><div class="check">${e("✅",20)}</div><div class="msg">Javobingiz saqlandi</div></div>`;
+        toast(`Javobingiz saqlandi ${e("💌",16)}`);
+        setTimeout(loadHome, 900);
+      };
     };
   }
 
@@ -675,34 +802,38 @@ async function loadHome() {
       const t = computeTogetherLive(anniv.anniversary);
       const bump = prevDays !== null && prevDays !== t.days;
       prevDays = t.days;
+      const p2 = n => String(n).padStart(2,"0");
       document.getElementById("togetherMain").innerHTML = `
         <div class="t-unit"><div class="t-num">${t.years}</div><div class="t-label">yil</div></div>
-        <div class="t-sep">·</div>
+        <div class="t-sep"></div>
         <div class="t-unit"><div class="t-num">${t.months}</div><div class="t-label">oy</div></div>
-        <div class="t-sep">·</div>
+        <div class="t-sep"></div>
         <div class="t-unit"><div class="t-num ${bump ? "bump" : ""}">${t.days}</div><div class="t-label">kun</div></div>
+        <div class="t-sep"></div>
+        <div class="t-unit"><div class="t-num">${p2(t.h)}</div><div class="t-label">soat</div></div>
+        <div class="t-sep"></div>
+        <div class="t-unit"><div class="t-num">${p2(t.m)}</div><div class="t-label">daqiqa</div></div>
+        <div class="t-sep"></div>
+        <div class="t-unit"><div class="t-num">${p2(t.s)}</div><div class="t-label">soniya</div></div>
       `;
-      const p2 = n => String(n).padStart(2,"0");
-      document.getElementById("togetherSecsText").textContent = `${p2(t.h)}:${p2(t.m)}:${p2(t.s)} jonli hisoblanmoqda`;
     };
     tick();
     liveTimer = setInterval(tick, 1000);
   } else {
-    document.getElementById("togetherMain").innerHTML = `<div class="t-unit"><div class="t-label" style="font-size:13px; color:var(--cream-dim); text-transform:none; letter-spacing:0;">Sana belgilanmagan</div></div>`;
-    document.getElementById("togetherSecsText").textContent = "Sozlamalarda qo'shing";
+    document.getElementById("togetherMain").innerHTML = `<div class="t-unit" style="flex:none;"><div class="t-label" style="font-size:13px; color:var(--cream-dim); text-transform:none; letter-spacing:0;">Sana belgilanmagan — Sozlamalarda qo'shing</div></div>`;
   }
 }
 
-function setHeaderGreeting(name) {
-  const hour = new Date().getHours();
-  let greet, tail;
-  if (hour < 6) { greet = "Xayrli tun"; tail = "yulduzlar hali osmonda ✨"; }
-  else if (hour < 11) { greet = "Xayrli tong"; tail = "bugun ham chiroyli kun bo'lsin ☀️"; }
-  else if (hour < 17) { greet = "Xayrli kun"; tail = "sizni sevgi kutmoqda 💛"; }
-  else if (hour < 22) { greet = "Xayrli kech"; tail = "birga o'tkazgan har lahza qadrli 🌙"; }
-  else { greet = "Tungi mulohaza"; tail = "sevgilingizga bir og'iz iliq so'z ayting 💌"; }
-  const first = (name || "").split(" ")[0];
-  document.getElementById("headerGreet").textContent = `${greet}, ${first} — ${tail}`;
+function updateProfileStrip(myName, partnerName) {
+  const myInitial = (myName || "?").trim()[0]?.toUpperCase() || "?";
+  document.getElementById("psMyAvatar").textContent = myInitial;
+  if (partnerName) {
+    document.getElementById("psPartnerName").textContent = partnerName;
+    document.getElementById("psPartnerAvatar").textContent = partnerName.trim()[0]?.toUpperCase() || "?";
+  } else {
+    document.getElementById("psPartnerName").textContent = "Sherik";
+    document.getElementById("psPartnerAvatar").textContent = "?";
+  }
 }
 
 function escapeHtml(s) {
@@ -738,6 +869,10 @@ async function loadJournal() {
 function fmtDate(iso) {
   const d = new Date(iso.replace(" ", "T") + "Z");
   return d.toLocaleDateString("uz-UZ", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+}
+function fmtDateOnly(iso) {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("uz-UZ", {day:"numeric", month:"short", year:"numeric"});
 }
 function openJournalForm() {
   const wrap = document.getElementById("journalFormWrap");
@@ -887,12 +1022,12 @@ async function loadLove() {
 }
 
 // ---------- Sozlamalar ----------
+async function openSettingsModal() {
+  document.getElementById("settingsModal").classList.add("open");
+  await refreshSettingsSummary();
+}
 function setupSettings() {
   const modal = document.getElementById("settingsModal");
-  document.getElementById("settingsBtn").onclick = async () => {
-    modal.classList.add("open");
-    await refreshSettingsSummary();
-  };
   document.getElementById("closeSettings").onclick = () => modal.classList.remove("open");
 
   document.getElementById("openAnniversary").onclick = () => toggle("panelAnniversary");
@@ -933,12 +1068,15 @@ function setupProfile() {
     await loadProfile();
   };
   document.getElementById("closeProfile").onclick = () => modal.classList.remove("open");
+  document.getElementById("partnerStripBtn").onclick = () => {
+    haptic();
+    toast(STATE?.partner_name ? `💞 ${STATE.partner_name} bilan bog'langansiz` : "Sherik hali qo'shilmagan");
+  };
 }
 async function loadProfile() {
   try {
     const p = await api("/api/profile");
     const initial = (p.name || "?").trim()[0]?.toUpperCase() || "?";
-    document.getElementById("profileBtn").textContent = initial;
     document.getElementById("profileAvatar").textContent = initial;
     document.getElementById("profileName").textContent = p.name;
     document.getElementById("profileUsername").textContent = p.username ? "@" + p.username : "username yo'q";

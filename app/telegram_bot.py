@@ -1,5 +1,6 @@
 """Telegram bot — ro'yxatdan o'tish/tasdiqlash, Mini App'ni ochish va to'liq Admin Panel."""
 
+import asyncio
 import csv
 import io
 import json
@@ -33,15 +34,31 @@ ADMIN_ID = int(os.environ.get("ADMIN_ID", "0"))  # super admin — bazadan olib 
 APP_URL = os.environ.get("APP_URL", "")
 
 
+async def db_call(fn, *args, **kwargs):
+    """Bloklovchi (sinxron) db.py chaqiruvlarini alohida threadda bajaradi,
+    shu orqali bot va serverning umumiy event loop'i hech qachon qotib qolmaydi."""
+    return await asyncio.to_thread(fn, *args, **kwargs)
+
+
+# Har bir foydalanuvchi uchun til va admin holatini keshlab, har bir menyu
+# chizilganda bazaga qayta-qayta murojaat qilishning oldini olamiz.
+_LANG_CACHE: dict[int, str] = {}
+_ADMIN_CACHE: dict[int, bool] = {}
+
+
 # ============================================================
 # Yordamchi funksiyalar
 # ============================================================
 
-def is_admin(user_id: int) -> bool:
+async def is_admin(user_id: int) -> bool:
     if user_id == ADMIN_ID:
         return True
-    user = db.get_user(user_id)
-    return bool(user and user["is_admin"])
+    if user_id in _ADMIN_CACHE:
+        return _ADMIN_CACHE[user_id]
+    user = await db_call(db.get_user, user_id)
+    result = bool(user and user["is_admin"])
+    _ADMIN_CACHE[user_id] = result
+    return result
 
 
 def open_app_kb() -> InlineKeyboardMarkup:
@@ -163,7 +180,11 @@ TEXT = {
 
 
 def tt(user_id: int, key: str, **kwargs) -> str:
-    lang = db.get_setting(f"lang_{user_id}") or "uz"
+    if user_id in _LANG_CACHE:
+        lang = _LANG_CACHE[user_id]
+    else:
+        lang = db.get_setting(f"lang_{user_id}") or "uz"
+        _LANG_CACHE[user_id] = lang
     template = TEXT.get(lang, TEXT["uz"]).get(key) or TEXT["uz"][key]
     return template.format(**kwargs)
 
@@ -171,34 +192,34 @@ def tt(user_id: int, key: str, **kwargs) -> str:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     username = update.effective_user.username
-    user = db.get_user(user_id)
+    user = await db_call(db.get_user, user_id)
     is_new = user is None
 
     if user is None:
         is_super_admin = user_id == ADMIN_ID
-        db.create_user(user_id, update.effective_user.first_name, username=username,
-                        status="approved", is_admin=is_super_admin)
-        db.create_relationship(user_id)  # har bir foydalanuvchida darhol shaxsiy taklif kodi tayyor bo'ladi
-        user = db.get_user(user_id)
+        await db_call(db.create_user, user_id, update.effective_user.first_name, username=username,
+                      status="approved", is_admin=is_super_admin)
+        await db_call(db.create_relationship, user_id)  # har bir foydalanuvchida darhol shaxsiy taklif kodi tayyor bo'ladi
+        user = await db_call(db.get_user, user_id)
 
     if user["status"] == "banned":
         await update.message.reply_text(tt(user_id, "banned"))
         return
 
     if not user["relationship_id"]:
-        db.create_relationship(user_id)  # ehtiyot chorasi (eski foydalanuvchilar uchun)
-        user = db.get_user(user_id)
+        await db_call(db.create_relationship, user_id)  # ehtiyot chorasi (eski foydalanuvchilar uchun)
+        user = await db_call(db.get_user, user_id)
 
-    partner = db.partner_of(user_id)
+    partner = await db_call(db.partner_of, user_id)
     key = "welcome_new" if is_new else "welcome_back"
     text = tt(user_id, key, name=user["name"])
     if partner:
         text += " " + tt(user_id, "connected_with", partner=partner["name"])
-    await update.message.reply_text(text, reply_markup=user_main_menu_kb(user_id))
+    await update.message.reply_text(text, reply_markup=await user_main_menu_kb(user_id))
 
 
-def user_main_menu_kb(user_id: int) -> InlineKeyboardMarkup:
-    partner = db.partner_of(user_id)
+async def user_main_menu_kb(user_id: int) -> InlineKeyboardMarkup:
+    partner = await db_call(db.partner_of, user_id)
     rows = [[InlineKeyboardButton(tt(user_id, "open"), web_app=WebAppInfo(url=APP_URL))]]
     if not partner:
         rows.append([InlineKeyboardButton(tt(user_id, "add_partner"), callback_data="pr:addpartner")])
@@ -217,11 +238,11 @@ async def pairing_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if action == "menu":
         context.user_data.pop("awaiting", None)
-        user = db.get_user(user_id)
-        partner = db.partner_of(user_id)
+        user = await db_call(db.get_user, user_id)
+        partner = await db_call(db.partner_of, user_id)
         text = tt(user_id, "welcome_back", name=user["name"])
         text += " " + (tt(user_id, "connected_with", partner=partner["name"]) if partner else tt(user_id, "not_connected"))
-        await query.edit_message_text(text, reply_markup=user_main_menu_kb(user_id))
+        await query.edit_message_text(text, reply_markup=await user_main_menu_kb(user_id))
 
     elif action == "addpartner":
         await query.edit_message_text(
@@ -234,12 +255,12 @@ async def pairing_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif action == "mycode":
-        user = db.get_user(user_id)
-        partner = db.partner_of(user_id)
+        user = await db_call(db.get_user, user_id)
+        partner = await db_call(db.partner_of, user_id)
         if partner:
             text = tt(user_id, "mycode_paired", partner=partner["name"])
         else:
-            rel = db.get_relationship(user["relationship_id"])
+            rel = await db_call(db.get_relationship, user["relationship_id"])
             text = tt(user_id, "mycode_solo", code=rel["invite_code"])
         await query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN,
                                        reply_markup=back_kb("pr:addpartner", tt(user_id, "back")))
@@ -250,7 +271,7 @@ async def pairing_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                        reply_markup=back_kb("pr:addpartner", tt(user_id, "back")))
 
     elif action == "settings":
-        partner = db.partner_of(user_id)
+        partner = await db_call(db.partner_of, user_id)
         rows = [[InlineKeyboardButton(tt(user_id, "language"), callback_data="pr:lang")]]
         if partner:
             rows.append([InlineKeyboardButton(tt(user_id, "clear_data"), callback_data="pr:reset_confirm")])
@@ -274,7 +295,8 @@ async def pairing_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "setlang":
         lang = parts[2]
-        db.set_setting(f"lang_{user_id}", lang)
+        await db_call(db.set_setting, f"lang_{user_id}", lang)
+        _LANG_CACHE[user_id] = lang
         await query.edit_message_text(tt(user_id, "lang_saved"),
                                        reply_markup=back_kb("pr:settings", tt(user_id, "back")))
 
@@ -304,13 +326,13 @@ async def pairing_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif action == "reset_ask":
-        user = db.get_user(user_id)
+        user = await db_call(db.get_user, user_id)
         if not (user and user["relationship_id"]):
             await query.edit_message_text("Hozircha aktiv juftlik topilmadi.", reply_markup=back_kb("pr:settings"))
             return
-        partner = db.partner_of(user_id)
+        partner = await db_call(db.partner_of, user_id)
         if not partner:
-            db.reset_relationship_data(user["relationship_id"])
+            await db_call(db.reset_relationship_data, user["relationship_id"])
             await query.edit_message_text("🗑 Ma'lumotlar tozalandi. Yangidan boshlashingiz mumkin!", reply_markup=open_app_kb())
             return
         await query.edit_message_text("⏳ So'rov sherigingizga yuborildi. U ham tasdiqlagach, ma'lumotlar tozalanadi.")
@@ -332,12 +354,12 @@ async def pairing_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "reset_approve":
         initiator_id = int(parts[2])
-        partner = db.partner_of(user_id)
+        partner = await db_call(db.partner_of, user_id)
         if not partner or partner["user_id"] != initiator_id:
             await query.edit_message_text("Bu so'rov endi amal qilmaydi.", reply_markup=back_kb("pr:menu"))
             return
-        user = db.get_user(user_id)
-        db.reset_relationship_data(user["relationship_id"])
+        user = await db_call(db.get_user, user_id)
+        await db_call(db.reset_relationship_data, user["relationship_id"])
         await query.edit_message_text("🗑 Ma'lumotlar tozalandi.", reply_markup=open_app_kb())
         try:
             await context.bot.send_message(
@@ -382,11 +404,11 @@ async def pairing_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif action == "unlink_ask":
-        partner = db.partner_of(user_id)
+        partner = await db_call(db.partner_of, user_id)
         if not partner:
-            db.leave_relationship(user_id)
-            db.create_relationship(user_id)
-            await query.edit_message_text("🔄 Bekor qilindi. Yangi shaxsiy kod yaratildi.", reply_markup=user_main_menu_kb(user_id))
+            await db_call(db.leave_relationship, user_id)
+            await db_call(db.create_relationship, user_id)
+            await query.edit_message_text("🔄 Bekor qilindi. Yangi shaxsiy kod yaratildi.", reply_markup=await user_main_menu_kb(user_id))
             return
         await query.edit_message_text("⏳ So'rov sherigingizga yuborildi. U ham tasdiqlagach, aloqa uziladi.")
         try:
@@ -406,21 +428,21 @@ async def pairing_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "unlink_approve":
         initiator_id = int(parts[2])
-        partner = db.partner_of(user_id)
+        partner = await db_call(db.partner_of, user_id)
         if not partner or partner["user_id"] != initiator_id:
             await query.edit_message_text("Bu so'rov endi amal qilmaydi.", reply_markup=back_kb("pr:menu"))
             return
-        db.leave_relationship(user_id)
-        db.create_relationship(user_id)
-        db.create_relationship(initiator_id)
+        await db_call(db.leave_relationship, user_id)
+        await db_call(db.create_relationship, user_id)
+        await db_call(db.create_relationship, initiator_id)
         await query.edit_message_text(
-            "🔄 Aloqa uzildi. Endi yangi sherik bilan bog'lanishingiz mumkin.", reply_markup=user_main_menu_kb(user_id)
+            "🔄 Aloqa uzildi. Endi yangi sherik bilan bog'lanishingiz mumkin.", reply_markup=await user_main_menu_kb(user_id)
         )
         try:
             await context.bot.send_message(
                 initiator_id,
                 "✅ Sherigingiz rozi bo'ldi. Aloqa uzildi. Endi yangi sherik bilan bog'lanishingiz mumkin.",
-                reply_markup=user_main_menu_kb(initiator_id),
+                reply_markup=await user_main_menu_kb(initiator_id),
             )
         except Exception:
             pass
@@ -444,13 +466,13 @@ def back_kb(callback_data: str = "am:menu", label: str = "⬅️ Orqaga") -> Inl
 
 async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    if not is_admin(update.effective_user.id):
+    if not await is_admin(update.effective_user.id):
         await query.answer("⛔ Siz admin emassiz.", show_alert=True)
         return
     await query.answer()
     _, action, uid = query.data.split(":")
     uid = int(uid)
-    target = db.get_user(uid)
+    target = await db_call(db.get_user, uid)
     if not target:
         await query.edit_message_text("Foydalanuvchi topilmadi.", reply_markup=back_kb("am:users"))
         return
@@ -459,16 +481,16 @@ async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_name = admin_name_of(update)
 
     if action == "ban":
-        db.set_user_status(uid, "banned")
-        db.log_admin_action(admin_id, admin_name, "ban", uid)
+        await db_call(db.set_user_status, uid, "banned")
+        await db_call(db.log_admin_action, admin_id, admin_name, "ban", uid)
         await query.edit_message_text(f"⛔ {target['name']} ban qilindi.", reply_markup=back_kb("am:users"))
         try:
             await context.bot.send_message(uid, "🚫 Siz ushbu botdan foydalanishingiz bloklandi.")
         except Exception:
             pass
     elif action == "unban":
-        db.unban_user(uid)
-        db.log_admin_action(admin_id, admin_name, "unban", uid)
+        await db_call(db.unban_user, uid)
+        await db_call(db.log_admin_action, admin_id, admin_name, "unban", uid)
         await query.edit_message_text(f"♻️ {target['name']} qayta tasdiqlandi.", reply_markup=back_kb("am:users"))
         try:
             await context.bot.send_message(uid, "✅ Siz qayta tasdiqlandingiz!", reply_markup=open_app_kb())
@@ -478,8 +500,9 @@ async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if uid == ADMIN_ID:
             await query.answer("Bosh adminni olib tashlab bo'lmaydi.", show_alert=True)
             return
-        db.set_admin(uid, False)
-        db.log_admin_action(admin_id, admin_name, "demote_admin", uid)
+        await db_call(db.set_admin, uid, False)
+        _ADMIN_CACHE.pop(uid, None)
+        await db_call(db.log_admin_action, admin_id, admin_name, "demote_admin", uid)
         await query.edit_message_text(f"👤 {target['name']} admin huquqidan mahrum qilindi.", reply_markup=back_kb("am:admins"))
 
 
@@ -488,7 +511,7 @@ async def user_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ============================================================
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_user.id):
+    if not await is_admin(update.effective_user.id):
         await update.message.reply_text("⛔ Siz admin emassiz.")
         return
     await update.message.reply_text("👨‍💼 *ADMIN PANEL*", parse_mode=ParseMode.MARKDOWN, reply_markup=main_menu_kb())
@@ -509,7 +532,7 @@ def main_menu_kb() -> InlineKeyboardMarkup:
 
 async def admin_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    if not is_admin(update.effective_user.id):
+    if not await is_admin(update.effective_user.id):
         await query.answer("⛔ Siz admin emassiz.", show_alert=True)
         return
     await query.answer()
@@ -533,10 +556,11 @@ async def admin_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "list":
         status = parts[2]
-        rows = {
+        fn = {
             "pending": db.pending_users, "approved": db.approved_users,
             "denied": db.denied_users, "banned": db.banned_users, "all": db.all_users,
-        }[status]()
+        }[status]
+        rows = await db_call(fn)
         if not rows:
             await query.edit_message_text("Bu bo'limda foydalanuvchi yo'q.",
                                            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="am:users")]]))
@@ -546,14 +570,14 @@ async def admin_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "user":
         uid = int(parts[2])
-        u = db.get_user(uid)
+        u = await db_call(db.get_user, uid)
         if not u:
             await query.edit_message_text("Topilmadi.")
             return
         await query.edit_message_text(fmt_user_line(u), parse_mode=ParseMode.MARKDOWN, reply_markup=user_row_kb(u))
 
     elif action == "stats":
-        s = db.user_statistics()
+        s = await db_call(db.user_statistics)
         now = datetime.utcnow()
         day = (now - timedelta(days=1)).isoformat()
         week = (now - timedelta(days=7)).isoformat()
@@ -566,12 +590,12 @@ async def admin_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"❌ Denied: {s['denied']}\n"
             f"⛔ Banned: {s['banned']}\n"
             f"👑 Adminlar: {s['admins']}\n\n"
-            f"🆕 Yangi (24soat): {db.new_users_since(day)}\n"
-            f"🆕 Yangi (7kun): {db.new_users_since(week)}\n"
-            f"🆕 Yangi (30kun): {db.new_users_since(month)}\n\n"
-            f"🔥 Faol (7kun): {db.active_users_since(week)}\n"
+            f"🆕 Yangi (24soat): {await db_call(db.new_users_since, day)}\n"
+            f"🆕 Yangi (7kun): {await db_call(db.new_users_since, week)}\n"
+            f"🆕 Yangi (30kun): {await db_call(db.new_users_since, month)}\n\n"
+            f"🔥 Faol (7kun): {await db_call(db.active_users_since, week)}\n"
         )
-        active = db.most_active_users(5)
+        active = await db_call(db.most_active_users, 5)
         if active:
             text += "\n🏆 *Eng faol foydalanuvchilar:*\n"
             for u in active:
@@ -580,7 +604,7 @@ async def admin_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="am:menu")]]))
 
     elif action == "logs":
-        logs = db.recent_admin_logs(20)
+        logs = await db_call(db.recent_admin_logs, 20)
         if not logs:
             text = "Loglar hali yo'q."
         else:
@@ -593,7 +617,7 @@ async def admin_menu_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="am:menu")]]))
 
     elif action == "admins":
-        admins = db.admin_users()
+        admins = await db_call(db.admin_users)
         lines = ["👑 *Adminlar:*\n", f"⭐ Bosh admin: `{ADMIN_ID}`"]
         kb_rows = []
         for a in admins:
@@ -668,7 +692,7 @@ async def admin_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.pop("awaiting", None)
         code = (update.message.text or "").strip()
         user_id = update.effective_user.id
-        rel = db.join_relationship(user_id, code)
+        rel = await db_call(db.join_relationship, user_id, code)
         if rel == "own_code":
             await update.message.reply_text(
                 "😅 Kechirasiz, bu sizning o'z kodingiz. Sherigingiz o'ziga tegishli kodni yuborishi kerak.",
@@ -684,7 +708,7 @@ async def admin_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ]),
             )
             return
-        partner = db.partner_of(user_id)
+        partner = await db_call(db.partner_of, user_id)
         await update.message.reply_text(
             f"💞 Tabriklaymiz! Siz {partner['name'] if partner else 'sherigingiz'} bilan bog'landingiz!",
             reply_markup=open_app_kb(),
@@ -700,13 +724,13 @@ async def admin_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 pass
         return
 
-    if not is_admin(update.effective_user.id):
+    if not await is_admin(update.effective_user.id):
         return
 
     if awaiting == "search":
         context.user_data.pop("awaiting", None)
         query_text = (update.message.text or "").strip()
-        rows = db.search_user(query_text)
+        rows = await db_call(db.search_user, query_text)
         if not rows:
             await update.message.reply_text("Hech narsa topilmadi.", reply_markup=back_kb("am:menu"))
             return
@@ -721,13 +745,14 @@ async def admin_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                              reply_markup=back_kb("am:menu"))
             return
         uid = int(raw)
-        target = db.get_user(uid)
+        target = await db_call(db.get_user, uid)
         if not target:
             await update.message.reply_text("Bu ID bazada topilmadi (foydalanuvchi botdan /start bosgan bo'lishi kerak).",
                                              reply_markup=back_kb("am:menu"))
             return
-        db.set_admin(uid, True)
-        db.log_admin_action(update.effective_user.id, admin_name_of(update), "add_admin", uid)
+        await db_call(db.set_admin, uid, True)
+        _ADMIN_CACHE.pop(uid, None)
+        await db_call(db.log_admin_action, update.effective_user.id, admin_name_of(update), "add_admin", uid)
         await update.message.reply_text(f"👑 {target['name']} endi admin.", reply_markup=back_kb("am:admins"))
         try:
             await context.bot.send_message(uid, "👑 Sizga admin huquqi berildi!")
@@ -743,7 +768,7 @@ async def admin_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def run_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
-    targets = db.approved_users()
+    targets = await db_call(db.approved_users)
     sent, failed = 0, 0
     for u in targets:
         uid = u["user_id"]
@@ -753,7 +778,7 @@ async def run_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             failed += 1
             logger.warning("Broadcast failed for %s: %s", uid, e)
-    db.log_admin_action(update.effective_user.id, admin_name_of(update), "broadcast", detail=f"sent={sent} failed={failed}")
+    await db_call(db.log_admin_action, update.effective_user.id, admin_name_of(update), "broadcast", detail=f"sent={sent} failed={failed}")
     await update.message.reply_text(f"📢 Yuborildi: {sent} ta ✅  |  Xato: {failed} ta ❌", reply_markup=back_kb("am:menu"))
 
 
@@ -763,7 +788,7 @@ async def run_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def send_csv_export(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    rows = db.all_users()
+    rows = await db_call(db.all_users)
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(["ID", "Name", "Username", "Status", "Admin", "Join Date", "Last Active", "Open Count"])
@@ -774,30 +799,23 @@ async def send_csv_export(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data.name = f"users_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.csv"
     await context.bot.send_document(chat_id=query.message.chat_id, document=InputFile(data, filename=data.name),
                                      caption="📤 Foydalanuvchilar CSV eksporti")
-    db.log_admin_action(update.effective_user.id, admin_name_of(update), "csv_export")
+    await db_call(db.log_admin_action, update.effective_user.id, admin_name_of(update), "csv_export")
 
 
 async def send_backup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    # 1) to'liq SQLite fayl
-    try:
-        with open(db.DB_PATH, "rb") as f:
-            await context.bot.send_document(chat_id=query.message.chat_id, document=InputFile(f, filename="love_backup.db"),
-                                             caption="💾 To'liq SQLite backup")
-    except Exception as e:
-        await context.bot.send_message(query.message.chat_id, f"DB faylini yuborishda xato: {e}")
-
-    # 2) o'qish uchun qulay JSON (users + adminlar)
     payload = {
         "exported_at": datetime.utcnow().isoformat(),
-        "users": [dict(u) for u in db.all_users()],
-        "admin_logs": [dict(l) for l in db.recent_admin_logs(200)],
+        "users": [dict(u) for u in await db_call(db.all_users)],
+        "admin_logs": [dict(l) for l in await db_call(db.recent_admin_logs, 200)],
     }
-    data = io.BytesIO(json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8"))
+    data = io.BytesIO(json.dumps(payload, ensure_ascii=False, indent=2, default=str).encode("utf-8"))
     data.name = f"backup_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.json"
     await context.bot.send_document(chat_id=query.message.chat_id, document=InputFile(data, filename=data.name),
-                                     caption="💾 JSON backup (users + admin_logs)")
-    db.log_admin_action(update.effective_user.id, admin_name_of(update), "backup")
+                                     caption="💾 JSON backup (users + admin_logs)\n\n"
+                                             "Eslatma: bu foydalanuvchi/admin ma'lumotlari. To'liq baza (xotira, "
+                                             "kayfiyat, reja) zaxirasi uchun Supabase dashboard'idagi Database → Backups bo'limidan foydalaning.")
+    await db_call(db.log_admin_action, update.effective_user.id, admin_name_of(update), "backup")
 
 
 # ============================================================
