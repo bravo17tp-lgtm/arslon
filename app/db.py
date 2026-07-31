@@ -56,15 +56,38 @@ class _ConnWrapper:
 @contextmanager
 def get_conn():
     conn = _pool.getconn()
+
+    # Uzoq vaqt jim turgan ulanish Supabase pooler tomonidan yopilgan bo'lishi mumkin.
+    # Ishlatishdan oldin tekshiramiz — agar "o'lik" bo'lsa, uni tashlab, yangisini olamiz.
+    try:
+        with conn.cursor() as test_cur:
+            test_cur.execute("SELECT 1")
+    except Exception:
+        try:
+            _pool.putconn(conn, close=True)
+        except Exception:
+            pass
+        conn = _pool.getconn()
+
     try:
         wrapper = _ConnWrapper(conn)
         yield wrapper
         conn.commit()
+    except (psycopg2.OperationalError, psycopg2.InterfaceError):
+        # Ulanish so'rov davomida uzilib qoldi — pooldan butunlay chiqarib tashlaymiz,
+        # shunda keyingi so'rovlar unga qayta duch kelmaydi.
+        try:
+            _pool.putconn(conn, close=True)
+        except Exception:
+            pass
+        conn = None
+        raise
     except Exception:
         conn.rollback()
         raise
     finally:
-        _pool.putconn(conn)
+        if conn is not None:
+            _pool.putconn(conn)
 
 
 # ============================================================
@@ -101,9 +124,52 @@ def init_db():
             id SERIAL PRIMARY KEY,
             relationship_id INTEGER NOT NULL REFERENCES relationships(id),
             author_id BIGINT NOT NULL,
+            title TEXT,
             text TEXT,
             photo_path TEXT,
+            media_type TEXT DEFAULT 'text',
+            location TEXT,
+            hashtags TEXT,
+            is_important BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            updated_at TIMESTAMPTZ DEFAULT now()
+        )""")
+        existing_journal_cols = {row["column_name"] for row in conn.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_name='journal'"
+        ).fetchall()}
+        for col, ddl in [
+            ("title", "ALTER TABLE journal ADD COLUMN title TEXT"),
+            ("media_type", "ALTER TABLE journal ADD COLUMN media_type TEXT DEFAULT 'text'"),
+            ("location", "ALTER TABLE journal ADD COLUMN location TEXT"),
+            ("hashtags", "ALTER TABLE journal ADD COLUMN hashtags TEXT"),
+            ("is_important", "ALTER TABLE journal ADD COLUMN is_important BOOLEAN DEFAULT FALSE"),
+            ("updated_at", "ALTER TABLE journal ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now()"),
+        ]:
+            if col not in existing_journal_cols:
+                conn.execute(ddl)
+
+        conn.execute("""CREATE TABLE IF NOT EXISTS journal_reactions (
+            id SERIAL PRIMARY KEY,
+            journal_id INTEGER NOT NULL REFERENCES journal(id) ON DELETE CASCADE,
+            user_id BIGINT NOT NULL,
+            emoji TEXT DEFAULT '❤️',
+            created_at TIMESTAMPTZ DEFAULT now(),
+            UNIQUE(journal_id, user_id)
+        )""")
+
+        conn.execute("""CREATE TABLE IF NOT EXISTS journal_comments (
+            id SERIAL PRIMARY KEY,
+            journal_id INTEGER NOT NULL REFERENCES journal(id) ON DELETE CASCADE,
+            author_id BIGINT NOT NULL,
+            text TEXT NOT NULL,
             created_at TIMESTAMPTZ DEFAULT now()
+        )""")
+
+        conn.execute("""CREATE TABLE IF NOT EXISTS journal_bookmarks (
+            journal_id INTEGER NOT NULL REFERENCES journal(id) ON DELETE CASCADE,
+            user_id BIGINT NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT now(),
+            PRIMARY KEY (journal_id, user_id)
         )""")
 
         conn.execute("""CREATE TABLE IF NOT EXISTS moods (
@@ -166,6 +232,8 @@ def init_db():
         # Indexlar
         conn.execute("CREATE INDEX IF NOT EXISTS idx_users_relationship ON users(relationship_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_journal_rel ON journal(relationship_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_journal_reactions_jid ON journal_reactions(journal_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_journal_comments_jid ON journal_comments(journal_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_moods_rel_date ON moods(relationship_id, mood_date)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_plans_rel ON plans(relationship_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_special_dates_rel ON special_dates(relationship_id)")
@@ -372,15 +440,19 @@ def set_json_setting(key: str, value):
 # Kundalik (xotiralar)
 # ============================================================
 
-def add_journal(relationship_id: int, author_id: int, text: str, photo_path: str = None):
+def add_journal(relationship_id: int, author_id: int, text: str, photo_path: str = None,
+                 title: str = None, media_type: str = "text", location: str = None,
+                 hashtags: str = None, is_important: bool = False):
     with get_conn() as conn:
-        conn.execute(
-            "INSERT INTO journal (relationship_id, author_id, text, photo_path) VALUES (%s,%s,%s,%s)",
-            (relationship_id, author_id, text, photo_path),
-        )
+        row = conn.execute(
+            "INSERT INTO journal (relationship_id, author_id, title, text, photo_path, media_type, "
+            "location, hashtags, is_important) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            (relationship_id, author_id, title, text, photo_path, media_type, location, hashtags, is_important),
+        ).fetchone()
+        return row["id"]
 
 
-def recent_journal(relationship_id: int, limit: int = 30):
+def recent_journal(relationship_id: int, limit: int = 50):
     with get_conn() as conn:
         return conn.execute(
             "SELECT j.*, u.name AS name FROM journal j JOIN users u ON u.user_id=j.author_id "
@@ -389,11 +461,116 @@ def recent_journal(relationship_id: int, limit: int = 30):
         ).fetchall()
 
 
+def get_journal_entry(journal_id: int):
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT j.*, u.name AS name FROM journal j JOIN users u ON u.user_id=j.author_id WHERE j.id=%s",
+            (journal_id,),
+        ).fetchone()
+
+
+def update_journal_entry(journal_id: int, title: str, text: str, is_important: bool, location: str, hashtags: str):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE journal SET title=%s, text=%s, is_important=%s, location=%s, hashtags=%s, updated_at=now() "
+            "WHERE id=%s",
+            (title, text, is_important, location, hashtags, journal_id),
+        )
+
+
+def delete_journal_entry(journal_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM journal WHERE id=%s", (journal_id,))
+
+
 def journal_count(relationship_id: int):
     with get_conn() as conn:
         return conn.execute(
             "SELECT COUNT(*) c FROM journal WHERE relationship_id=%s", (relationship_id,)
         ).fetchone()["c"]
+
+
+# ---------- Kundalik: reaksiyalar ----------
+
+def toggle_journal_reaction(journal_id: int, user_id: int, emoji: str = "❤️"):
+    with get_conn() as conn:
+        existing = conn.execute(
+            "SELECT emoji FROM journal_reactions WHERE journal_id=%s AND user_id=%s", (journal_id, user_id)
+        ).fetchone()
+        if existing and existing["emoji"] == emoji:
+            conn.execute("DELETE FROM journal_reactions WHERE journal_id=%s AND user_id=%s", (journal_id, user_id))
+            return False
+        conn.execute(
+            "INSERT INTO journal_reactions (journal_id, user_id, emoji) VALUES (%s,%s,%s) "
+            "ON CONFLICT (journal_id, user_id) DO UPDATE SET emoji=EXCLUDED.emoji",
+            (journal_id, user_id, emoji),
+        )
+        return True
+
+
+def journal_reaction_summary(journal_id: int, user_id: int):
+    with get_conn() as conn:
+        count = conn.execute(
+            "SELECT COUNT(*) c FROM journal_reactions WHERE journal_id=%s", (journal_id,)
+        ).fetchone()["c"]
+        mine = conn.execute(
+            "SELECT 1 FROM journal_reactions WHERE journal_id=%s AND user_id=%s", (journal_id, user_id)
+        ).fetchone()
+        return {"count": count, "liked": bool(mine)}
+
+
+def journal_reaction_summaries(relationship_id: int, user_id: int):
+    """Kundalik ro'yxati uchun — barcha yozuvlarning reaksiya sonini bitta so'rovda oladi."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT journal_id, COUNT(*) c, BOOL_OR(user_id=%s) mine FROM journal_reactions "
+            "WHERE journal_id IN (SELECT id FROM journal WHERE relationship_id=%s) GROUP BY journal_id",
+            (user_id, relationship_id),
+        ).fetchall()
+        return {r["journal_id"]: {"count": r["c"], "liked": r["mine"]} for r in rows}
+
+
+# ---------- Kundalik: izohlar ----------
+
+def add_journal_comment(journal_id: int, author_id: int, text: str):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO journal_comments (journal_id, author_id, text) VALUES (%s,%s,%s)",
+            (journal_id, author_id, text),
+        )
+
+
+def list_journal_comments(journal_id: int):
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT c.*, u.name AS name FROM journal_comments c JOIN users u ON u.user_id=c.author_id "
+            "WHERE c.journal_id=%s ORDER BY c.created_at ASC",
+            (journal_id,),
+        ).fetchall()
+
+
+def journal_comment_counts(relationship_id: int):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT journal_id, COUNT(*) c FROM journal_comments "
+            "WHERE journal_id IN (SELECT id FROM journal WHERE relationship_id=%s) GROUP BY journal_id",
+            (relationship_id,),
+        ).fetchall()
+        return {r["journal_id"]: r["c"] for r in rows}
+
+
+# ---------- Kundalik: xatchoʻplar ----------
+
+def toggle_journal_bookmark(journal_id: int, user_id: int):
+    with get_conn() as conn:
+        existing = conn.execute(
+            "SELECT 1 FROM journal_bookmarks WHERE journal_id=%s AND user_id=%s", (journal_id, user_id)
+        ).fetchone()
+        if existing:
+            conn.execute("DELETE FROM journal_bookmarks WHERE journal_id=%s AND user_id=%s", (journal_id, user_id))
+            return False
+        conn.execute("INSERT INTO journal_bookmarks (journal_id, user_id) VALUES (%s,%s)", (journal_id, user_id))
+        return True
 
 
 def journal_count_since(relationship_id: int, cutoff_iso: str):

@@ -74,55 +74,51 @@
   .gear-btn .emoji-img{ height:17px; width:17px; }
 
   /* Hero (together counter) — redesigned */
-  .hero{ background:linear-gradient(165deg, #3a0f1e 0%, #200a14 55%, #150810 100%); border:1px solid rgba(232,120,140,0.22); border-radius:26px; padding:22px 16px 20px; text-align:center; margin-bottom:16px; position:relative; overflow:hidden; box-shadow:0 24px 50px -22px rgba(120,10,40,0.55), 0 2px 0 rgba(255,255,255,0.03) inset; }
-  .hero::before{ content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 6%, rgba(232,84,120,0.24), transparent 55%), radial-gradient(1.5px 1.5px at 10% 15%, #fff, transparent), radial-gradient(1px 1px at 25% 30%, #fff, transparent), radial-gradient(1.5px 1.5px at 80% 10%, #fff, transparent), radial-gradient(1px 1px at 65% 25%, #fff, transparent), radial-gradient(1px 1px at 92% 35%, #fff, transparent), radial-gradient(1.5px 1.5px at 40% 8%, #fff, transparent); background-repeat:no-repeat; opacity:0.9; pointer-events:none; }
+  .hero{ background:linear-gradient(165deg, var(--bg3) 0%, var(--bg2) 55%, var(--bg) 100%); border:1px solid var(--line-strong); border-radius:26px; padding:18px 16px 14px; text-align:center; margin-bottom:16px; position:relative; overflow:hidden; box-shadow:0 20px 44px -22px rgba(0,0,0,0.55), 0 2px 0 rgba(255,255,255,0.03) inset; }
+  .hero::before{ content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 6%, var(--gold-soft), transparent 55%), radial-gradient(1.5px 1.5px at 10% 15%, #fff, transparent), radial-gradient(1px 1px at 25% 30%, #fff, transparent), radial-gradient(1.5px 1.5px at 80% 10%, #fff, transparent), radial-gradient(1px 1px at 65% 25%, #fff, transparent), radial-gradient(1px 1px at 92% 35%, #fff, transparent), radial-gradient(1.5px 1.5px at 40% 8%, #fff, transparent); background-repeat:no-repeat; opacity:0.9; pointer-events:none; }
 
-  .hero-bell{ position:absolute; top:16px; right:16px; width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; font-size:13px; z-index:2; }
-  .hero-bell::after{ content:''; position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%; background:#ff5d6c; box-shadow:0 0 0 2px #200a14; }
+  .hero-bell{ position:absolute; top:14px; right:14px; width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,0.06); border:1px solid var(--line-strong); display:flex; align-items:center; justify-content:center; font-size:12px; z-index:2; }
+  .hero-bell::after{ content:''; position:absolute; top:3px; right:3px; width:6px; height:6px; border-radius:50%; background:#ff5d6c; box-shadow:0 0 0 2px var(--bg2); }
 
-  .hero-heart-wrap{ position:relative; width:40px; height:40px; margin:0 auto 2px; z-index:1; }
-  .hero-heart{ width:26px; height:26px; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); animation:heartbeat 1.8s ease-in-out infinite; filter:drop-shadow(0 0 14px rgba(255,110,150,0.65)); }
+  .hero-heart-wrap{ position:relative; width:36px; height:36px; margin:0 auto 2px; z-index:1; }
+  .hero-heart{ width:24px; height:24px; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); animation:heartbeat 1.8s ease-in-out infinite; filter:drop-shadow(0 0 14px var(--gold-soft)); }
   @keyframes heartbeat{ 0%,100%{ transform:translate(-50%,-50%) scale(1); } 15%{ transform:translate(-50%,-50%) scale(1.18); } 30%{ transform:translate(-50%,-50%) scale(1); } 45%{ transform:translate(-50%,-50%) scale(1.1); } 60%{ transform:translate(-50%,-50%) scale(1); } }
-  .sparkle{ position:absolute; color:#ffd7e2; font-size:9px; opacity:0; animation:twinkle 2.4s ease-in-out infinite; }
+  .sparkle{ position:absolute; color:var(--cream); font-size:9px; opacity:0; animation:twinkle 2.4s ease-in-out infinite; }
   .sparkle:nth-child(2){ top:-6px; left:2px; animation-delay:0s; }
   .sparkle:nth-child(3){ top:4px; right:-10px; font-size:7px; animation-delay:0.6s; }
   .sparkle:nth-child(4){ bottom:-4px; left:-8px; font-size:7px; animation-delay:1.2s; }
   .sparkle:nth-child(5){ bottom:0; right:0; font-size:8px; animation-delay:1.8s; }
   @keyframes twinkle{ 0%,100%{ opacity:0; transform:scale(0.4); } 50%{ opacity:1; transform:scale(1); } }
 
-  .hero-label{ font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase; color:#f3b6c4; font-weight:700; margin-bottom:4px; position:relative; z-index:1; display:flex; align-items:center; justify-content:center; gap:8px; }
-  .hero-label .hl-heart{ font-size:9px; color:#e0707f; }
-  .hero-cursive{ font-family:'Dancing Script',cursive; font-weight:600; font-size:19px; color:#f6d9de; margin-bottom:16px; position:relative; z-index:1; }
+  .hero-label{ font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--gold); font-weight:700; margin-bottom:3px; position:relative; z-index:1; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .hero-label .hl-heart{ font-size:9px; color:var(--coral); }
+  .hero-cursive{ font-family:'Dancing Script',cursive; font-weight:600; font-size:17px; color:var(--cream); margin-bottom:10px; position:relative; z-index:1; }
 
   .together-grid{ display:flex; align-items:flex-end; justify-content:center; gap:0; position:relative; z-index:1; }
   .t-unit{ display:flex; flex-direction:column; align-items:center; flex:1; min-width:0; }
-  .t-num{ font-family:'Fraunces',serif; font-size:25px; font-weight:700; color:#fff5f7; line-height:1; font-variant-numeric:tabular-nums; text-shadow:0 0 20px rgba(255,110,150,0.45); transition:transform .2s ease; }
+  .t-num{ font-family:'Fraunces',serif; font-size:23px; font-weight:700; color:var(--cream); line-height:1; font-variant-numeric:tabular-nums; text-shadow:0 0 18px var(--gold-soft); transition:transform .2s ease; }
   .t-num.bump{ animation:numBump .35s cubic-bezier(.3,1.6,.5,1); }
   @keyframes numBump{ 0%{ transform:scale(1); } 40%{ transform:scale(1.22); } 100%{ transform:scale(1); } }
-  .t-label{ font-size:8.5px; color:#e8a7b8; text-transform:uppercase; letter-spacing:0.06em; margin-top:5px; }
-  .t-sep{ width:1px; height:26px; background:rgba(255,255,255,0.14); align-self:center; margin-bottom:12px; }
+  .t-label{ font-size:8.5px; color:var(--cream-faint); text-transform:uppercase; letter-spacing:0.06em; margin-top:4px; }
+  .t-sep{ width:1px; height:24px; background:var(--line-strong); align-self:center; margin-bottom:11px; }
 
-  .hero-scene{ position:relative; height:64px; margin:14px -16px -20px; overflow:hidden; }
-  .hero-sun{ position:absolute; left:50%; bottom:2px; transform:translateX(-50%); width:64px; height:64px; border-radius:50%;
-    background:radial-gradient(circle, #ffe4c2 0%, #ffbd8a 30%, rgba(255,138,120,0.55) 55%, transparent 72%);
-    box-shadow:0 0 30px 6px rgba(255,170,130,0.35); animation:sunGlow 4s ease-in-out infinite; }
-  @keyframes sunGlow{ 0%,100%{ opacity:0.92; } 50%{ opacity:1; } }
-  .hero-mtn1{ position:absolute; left:0; right:0; bottom:0; height:40px;
-    background:linear-gradient(180deg, #2a0f1a, #170a12);
-    clip-path:polygon(0% 100%,0% 62%,16% 40%,32% 60%,48% 28%,64% 52%,80% 24%,100% 44%,100% 100%); opacity:0.92; }
-  .hero-mtn2{ position:absolute; left:0; right:0; bottom:0; height:22px;
-    background:linear-gradient(180deg, #170a12, #0c050a);
+  .hero-scene{ position:relative; height:46px; margin:10px -16px -14px; overflow:hidden; }
+  .hero-sun{ position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:52px; height:52px; border-radius:50%;
+    background:radial-gradient(circle, var(--gold) 0%, var(--gold-dim) 35%, var(--gold-soft) 60%, transparent 72%);
+    box-shadow:0 0 26px 4px var(--gold-soft); animation:sunGlow 4s ease-in-out infinite; opacity:0.85; }
+  @keyframes sunGlow{ 0%,100%{ opacity:0.78; } 50%{ opacity:0.95; } }
+  .hero-mtn1{ position:absolute; left:0; right:0; bottom:0; height:32px;
+    background:rgba(0,0,0,0.4);
+    clip-path:polygon(0% 100%,0% 62%,16% 40%,32% 60%,48% 28%,64% 52%,80% 24%,100% 44%,100% 100%); }
+  .hero-mtn2{ position:absolute; left:0; right:0; bottom:0; height:18px; background:rgba(0,0,0,0.55);
     clip-path:polygon(0% 100%,0% 80%,20% 55%,38% 75%,58% 48%,76% 70%,100% 55%,100% 100%); }
   .hero-scene .sparkle{ font-size:6px; }
-  .hero-scene .sparkle:nth-child(1){ top:6px; left:22%; animation-delay:0.3s; }
-  .hero-scene .sparkle:nth-child(2){ top:14px; right:20%; animation-delay:1s; }
-  .live-pill{ display:inline-flex; align-items:center; gap:7px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.14); border-radius:30px; padding:7px 16px; font-size:11.5px; color:#f0dce0; margin-top:14px; position:relative; z-index:2; }
+  .hero-scene .sparkle:nth-child(1){ top:4px; left:22%; animation-delay:0.3s; }
+  .hero-scene .sparkle:nth-child(2){ top:10px; right:20%; animation-delay:1s; }
+  .live-pill{ display:inline-flex; align-items:center; gap:7px; background:rgba(255,255,255,0.06); border:1px solid var(--line-strong); border-radius:30px; padding:6px 15px; font-size:11px; color:var(--cream-dim); margin-top:10px; position:relative; z-index:2; }
   .live-pill .live-dot{ width:6px; height:6px; border-radius:50%; background:#5fd97a; box-shadow:0 0 0 0 rgba(95,217,122,0.6); animation:livepulse 1.6s ease-out infinite; }
   @keyframes livepulse{ 0%{ box-shadow:0 0 0 0 rgba(95,217,122,0.55); } 70%{ box-shadow:0 0 0 7px rgba(95,217,122,0); } 100%{ box-shadow:0 0 0 0 rgba(95,217,122,0); } }
 
-  .quote{ font-family:'Fraunces',serif; font-style:italic; font-weight:400; font-size:14px; color:#f3d6dd; margin-top:18px; line-height:1.55; position:relative; z-index:1; padding:0 6px; }
-  .quote::before{ content:'“'; color:#e88ba0; font-size:22px; margin-right:2px; font-family:'Fraunces',serif; }
-  .quote::after{ content:'”'; color:#e88ba0; font-size:22px; margin-left:2px; font-family:'Fraunces',serif; }
 
   .mood-row{ display:flex; gap:12px; }
   .mood-box{ flex:1; background:rgba(243,234,217,0.04); border:1px solid var(--line); border-radius:18px; padding:16px 14px; text-align:center; transition:border-color .25s ease, background .25s ease, transform .2s ease; }
@@ -206,12 +202,74 @@
   .btn-row{ display:flex; gap:10px; margin-top:10px; }
 
   /* Journal */
-  .j-entry{ display:flex; gap:12px; padding:14px 0; border-top:1px solid var(--line); }
-  .j-entry:first-child{ border-top:none; }
-  .j-avatar{ width:34px; height:34px; border-radius:50%; background:linear-gradient(140deg,var(--gold),var(--coral)); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#1a2233; }
-  .j-meta{ font-size:11px; color:var(--gold-dim); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:3px; font-weight:600; }
-  .j-text{ font-size:13.5px; color:var(--cream); line-height:1.5; }
-  .j-photo{ margin-top:8px; width:100%; border-radius:12px; display:block; max-height:260px; object-fit:cover; }
+  /* Kundalik — ro'yxat sahifasi */
+  .j-header{ text-align:center; padding:6px 4px 16px; }
+  .j-header-title{ font-family:'Fraunces',serif; font-size:20px; font-weight:600; color:var(--gold); display:flex; align-items:center; justify-content:center; gap:6px; }
+  .j-heart-spark{ display:inline-flex; gap:2px; }
+  .j-header-sub{ font-size:12px; color:var(--cream-faint); margin-top:4px; }
+
+  .j-filters{ display:flex; gap:8px; overflow-x:auto; padding-bottom:10px; margin-bottom:10px; scrollbar-width:none; }
+  .j-filters::-webkit-scrollbar{ display:none; }
+  .j-filter-pill{ flex-shrink:0; background:rgba(243,234,217,0.04); border:1px solid var(--line-strong); color:var(--cream-dim); border-radius:20px; padding:8px 16px; font-size:12.5px; white-space:nowrap; transition:all .2s ease; }
+  .j-filter-pill.active{ background:var(--gold-soft); border-color:var(--gold); color:var(--gold); }
+
+  .j-search-row{ margin-bottom:16px; }
+  .j-search-row input{ margin:0; }
+
+  .j-date-divider{ text-align:center; font-size:11px; color:var(--gold-dim); letter-spacing:0.06em; margin:18px 0 10px; display:flex; align-items:center; justify-content:center; gap:8px; }
+
+  .j-empty{ text-align:center; padding:50px 20px; }
+  .j-empty-icon{ margin-bottom:12px; }
+  .j-empty-title{ font-family:'Fraunces',serif; font-size:16px; color:var(--cream); margin-bottom:4px; }
+  .j-empty-sub{ font-size:12.5px; color:var(--cream-faint); }
+
+  .j-card{ background:rgba(243,234,217,0.03); border:1px solid var(--line-strong); border-radius:18px; padding:14px; margin-bottom:12px; position:relative; transition:transform .15s ease; }
+  .j-card:active{ transform:scale(0.985); }
+  .j-badge{ position:absolute; top:-6px; right:12px; width:24px; height:24px; border-radius:50%; background:var(--coral); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px -2px rgba(0,0,0,0.4); }
+  .j-card-body{ display:flex; gap:12px; align-items:flex-start; }
+  .j-thumb-wrap{ position:relative; flex-shrink:0; }
+  .j-thumb{ width:64px; height:64px; border-radius:14px; object-fit:cover; }
+  .j-thumb-play{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.25); border-radius:14px; }
+  .j-quote-mark{ width:64px; height:64px; border-radius:14px; background:var(--gold-soft); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .j-card-text{ flex:1; min-width:0; }
+  .j-card-title{ font-size:13.5px; color:var(--cream); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .j-card-meta{ font-size:11px; color:var(--cream-faint); margin-top:6px; }
+  .j-card-footer{ display:flex; align-items:center; gap:14px; margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
+  .j-card-action{ display:flex; align-items:center; gap:5px; font-size:12px; color:var(--cream-faint); background:none; }
+  .j-like-btn.liked{ color:var(--coral); }
+
+  /* Kundalik — detail sahifasi */
+  .j-detail-header{ display:flex; align-items:center; justify-content:space-between; padding:4px 0 2px; }
+  .j-detail-title{ font-family:'Fraunces',serif; font-size:15px; color:var(--gold); font-weight:600; display:flex; align-items:center; gap:6px; }
+  .icon-circle-btn{ width:34px; height:34px; border-radius:50%; background:rgba(243,234,217,0.05); border:1px solid var(--line-strong); color:var(--cream-dim); font-size:16px; display:flex; align-items:center; justify-content:center; transition:transform .15s ease; }
+  .icon-circle-btn:active{ transform:scale(0.88); }
+  .j-detail-date{ text-align:center; font-size:12px; color:var(--cream-faint); margin:6px 0 16px; }
+
+  .j-detail-author-row{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .j-avatar-sm{ width:32px; height:32px; border-radius:50%; background:var(--gold-soft); border:1px solid var(--gold-dim); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-size:12px; font-weight:600; color:var(--gold); flex-shrink:0; }
+  .j-detail-author-name{ font-size:13.5px; color:var(--cream); font-weight:600; }
+  .j-detail-location{ font-size:11.5px; color:var(--cream-faint); margin-top:2px; }
+  .j-important-tag{ background:rgba(212,175,106,0.12); border:1px solid var(--gold-dim); border-radius:20px; padding:5px 11px; font-size:10.5px; color:var(--gold); white-space:nowrap; }
+
+  .j-detail-title-text{ font-family:'Fraunces',serif; font-size:17px; font-weight:600; color:var(--cream); margin-bottom:8px; line-height:1.35; }
+  .j-detail-body{ font-size:13.5px; color:var(--cream-dim); line-height:1.6; margin-bottom:10px; }
+  .j-hashtags{ font-size:12.5px; color:var(--coral); margin-bottom:14px; }
+  .j-detail-media{ margin:0 -16px 14px; }
+  .j-detail-img{ width:100%; max-height:340px; object-fit:cover; display:block; }
+
+  .j-action-row{ display:flex; align-items:center; gap:18px; padding:12px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); margin-bottom:16px; }
+  .j-action-btn{ display:flex; align-items:center; gap:6px; font-size:13px; color:var(--cream-dim); background:none; }
+  .j-action-btn.liked{ color:var(--coral); }
+
+  .j-comments-title{ font-size:13px; font-weight:600; color:var(--cream); margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+  .j-comment{ display:flex; gap:10px; margin-bottom:14px; }
+  .j-comment-head{ font-size:12.5px; }
+  .j-comment-head b{ color:var(--cream); }
+  .j-comment-time{ color:var(--cream-faint); font-size:11px; margin-left:4px; }
+  .j-comment-text{ font-size:13px; color:var(--cream-dim); margin-top:2px; line-height:1.5; }
+  .j-comment-input-row{ display:flex; gap:8px; margin-top:6px; }
+  .j-comment-input-row input{ flex:1; margin:0; }
+
   .empty{ color:var(--cream-faint); font-size:13px; text-align:center; padding:20px 0; }
 
   .fab{ position:fixed; bottom:96px; right:calc(50% - 260px + 20px); width:54px; height:54px; border-radius:50%; background:var(--gold); color:#1a2233; font-size:24px; display:flex; align-items:center; justify-content:center; box-shadow:0 10px 24px -6px rgba(212,175,106,0.6); z-index:20; }
@@ -719,7 +777,6 @@ async function loadHome() {
         <span class="sparkle">✦</span><span class="sparkle">✦</span>
       </div>
       <div class="live-pill"><span class="live-dot"></span> Jonli hisoblash</div>
-      <div class="quote">${STATE.quote}</div>
     </div>
 
     <div class="row2">
@@ -855,31 +912,6 @@ function escapeHtml(s) {
 }
 
 // ---------- Kundalik ----------
-async function loadJournal() {
-  const entries = await api("/api/journal");
-  const el = document.getElementById("view-journal");
-  el.innerHTML = `
-    <div class="card" style="margin-bottom:76px;">
-      <h3>${e("📔")} Xotiralar</h3>
-      <div id="journalList">
-        ${entries.length === 0 ? `<div class="empty">Hali xotira yo'q. (+) tugmasi orqali qo'shing.</div>` :
-          entries.map(entry => `
-            <div class="j-entry">
-              <div class="j-avatar">${(entry.name||"?")[0]}</div>
-              <div style="flex:1;">
-                <div class="j-meta">${entry.name} · ${fmtDate(entry.created_at)}</div>
-                ${entry.text ? `<div class="j-text">${escapeHtml(entry.text)}</div>` : ""}
-                ${entry.photo_url ? `<img class="j-photo" src="${entry.photo_url}">` : ""}
-              </div>
-            </div>
-          `).join("")}
-      </div>
-    </div>
-    <button class="fab" id="journalFab">+</button>
-    <div id="journalFormWrap"></div>
-  `;
-  document.getElementById("journalFab").onclick = openJournalForm;
-}
 function fmtDate(iso) {
   const d = new Date(iso.replace(" ", "T") + "Z");
   return d.toLocaleDateString("uz-UZ", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
@@ -888,29 +920,268 @@ function fmtDateOnly(iso) {
   const d = new Date(iso + "T00:00:00");
   return d.toLocaleDateString("uz-UZ", {day:"numeric", month:"short", year:"numeric"});
 }
-function openJournalForm() {
-  const wrap = document.getElementById("journalFormWrap");
+
+let JOURNAL_ENTRIES = [];
+let JOURNAL_FILTER = "all";
+let JOURNAL_SEARCH = "";
+
+async function loadJournal() {
+  JOURNAL_ENTRIES = await api("/api/journal");
+  renderJournalList();
+}
+
+function renderJournalList() {
+  const el = document.getElementById("view-journal");
+  const filtered = JOURNAL_ENTRIES.filter(entry => {
+    if (JOURNAL_FILTER === "text" && entry.media_type !== "text") return false;
+    if (JOURNAL_FILTER === "photo" && entry.media_type !== "photo") return false;
+    if (JOURNAL_FILTER === "video" && entry.media_type !== "video") return false;
+    if (JOURNAL_FILTER === "important" && !entry.is_important) return false;
+    if (JOURNAL_SEARCH) {
+      const hay = `${entry.title || ""} ${entry.text || ""}`.toLowerCase();
+      if (!hay.includes(JOURNAL_SEARCH.toLowerCase())) return false;
+    }
+    return true;
+  });
+
+  const groups = {};
+  filtered.forEach(entry => {
+    const day = (entry.created_at || "").replace(" ", "T").split("T")[0];
+    if (!groups[day]) groups[day] = [];
+    groups[day].push(entry);
+  });
+  const days = Object.keys(groups).sort().reverse();
+
+  const filterLabels = { all: "Barchasi", text: "Matn", photo: "Rasm", video: "Video" };
+
+  el.innerHTML = `
+    <div class="j-header">
+      <div class="j-header-title">Kundalik xotiralar <span class="j-heart-spark">${e("✨",15)}${e("❤️",14)}</span></div>
+      <div class="j-header-sub">Bizning eng chiroyli lahzalarimiz ${e("✨",13)}</div>
+    </div>
+
+    <div class="j-filters">
+      ${["all","text","photo","video","important"].map(f => `
+        <button class="j-filter-pill ${JOURNAL_FILTER===f?"active":""}" data-filter="${f}">
+          ${f === "important" ? `${e("❤️",12)} Muhim` : filterLabels[f]}
+        </button>
+      `).join("")}
+    </div>
+
+    <div class="j-search-row">
+      <input type="text" id="journalSearch" placeholder="Xotiralar ichida qidirish..." value="${escapeHtml(JOURNAL_SEARCH)}">
+    </div>
+
+    <div id="journalList" style="margin-bottom:80px;">
+      ${days.length === 0 ? `
+        <div class="j-empty">
+          <div class="j-empty-icon">${e("💌",40)}</div>
+          <div class="j-empty-title">Hali xotira yo'q</div>
+          <div class="j-empty-sub">Birinchi chiroyli lahzangizni saqlab qo'ying</div>
+        </div>
+      ` : days.map(day => `
+        <div class="j-date-divider"><span>${e("♥",10)}</span> ${fmtDateOnly(day)} <span>${e("♥",10)}</span></div>
+        ${groups[day].map(entry => journalCardHtml(entry)).join("")}
+      `).join("")}
+    </div>
+
+    <button class="fab" id="journalFab">+</button>
+    <div id="journalFormWrap"></div>
+  `;
+
+  document.getElementById("journalFab").onclick = () => openJournalForm();
+  document.querySelectorAll(".j-filter-pill").forEach(btn => {
+    btn.onclick = () => { haptic(); JOURNAL_FILTER = btn.dataset.filter; renderJournalList(); };
+  });
+  const searchEl = document.getElementById("journalSearch");
+  searchEl.oninput = ev => { JOURNAL_SEARCH = ev.target.value; };
+  searchEl.onkeydown = ev => { if (ev.key === "Enter") renderJournalList(); };
+  document.querySelectorAll(".j-card").forEach(card => {
+    card.onclick = ev => {
+      if (ev.target.closest(".j-card-action")) return;
+      openJournalDetail(parseInt(card.dataset.id));
+    };
+  });
+  document.querySelectorAll(".j-like-btn").forEach(btn => {
+    btn.onclick = async ev => {
+      ev.stopPropagation();
+      haptic();
+      await api(`/api/journal/${btn.dataset.id}/like`, { method: "POST" });
+      await loadJournal();
+    };
+  });
+}
+
+function journalCardHtml(entry) {
+  const typeLabel = { text: "Matn", photo: "Rasm", video: "Video" }[entry.media_type] || "Matn";
+  const typeIcon = { text: "📝", photo: "🖼️", video: "🎬" }[entry.media_type] || "📝";
+  const timeStr = new Date((entry.created_at || "").replace(" ","T") + "Z").toLocaleTimeString("uz-UZ", {hour:"2-digit", minute:"2-digit"});
+  return `
+    <div class="j-card" data-id="${entry.id}">
+      ${entry.is_important ? `<div class="j-badge">${e("⭐",12)}</div>` : ""}
+      <div class="j-card-body">
+        ${entry.photo_url ? `
+          <div class="j-thumb-wrap">
+            <img class="j-thumb" src="${entry.photo_url}">
+            ${entry.media_type === "video" ? `<div class="j-thumb-play">${e("▶️",14)}</div>` : ""}
+          </div>
+        ` : `<div class="j-quote-mark">${e("❝",18)}</div>`}
+        <div class="j-card-text">
+          <div class="j-card-title">${escapeHtml(entry.title || entry.text || "")}</div>
+          <div class="j-card-meta">${e(typeIcon,12)} ${typeLabel} · ${timeStr}</div>
+        </div>
+      </div>
+      <div class="j-card-footer">
+        <button class="j-card-action j-like-btn ${entry.liked_by_me ? "liked" : ""}" data-id="${entry.id}">${e(entry.liked_by_me ? "❤️" : "🤍",14)} ${entry.like_count}</button>
+        <span class="j-card-action">${e("💬",14)} ${entry.comment_count}</span>
+        <span style="flex:1;"></span>
+        <span class="j-card-action">${e("🔖",14)}</span>
+      </div>
+    </div>
+  `;
+}
+
+async function openJournalDetail(id) {
+  const entry = await api(`/api/journal/${id}`);
+  const el = document.getElementById("view-journal");
+  el.innerHTML = `
+    <div class="j-detail-header">
+      <button class="icon-circle-btn" id="jBack">‹</button>
+      <div class="j-detail-title">${e("💌",16)} XOTIRA</div>
+      <div style="display:flex; gap:8px;">
+        <button class="icon-circle-btn" id="jEdit">${e("✏️",14)}</button>
+        <button class="icon-circle-btn" id="jDeleteBtn">${e("🗑️",14)}</button>
+      </div>
+    </div>
+    <div class="j-detail-date">${fmtDate(entry.created_at)}</div>
+
+    <div class="card j-detail-card" style="margin-bottom:90px;">
+      <div class="j-detail-author-row">
+        <div class="j-avatar-sm">${(entry.name||"?")[0]}</div>
+        <div style="flex:1;">
+          <div class="j-detail-author-name">${entry.name} ${e("❤️",11)}</div>
+          ${entry.location ? `<div class="j-detail-location">${e("📍",11)} ${escapeHtml(entry.location)}</div>` : ""}
+        </div>
+        ${entry.is_important ? `<div class="j-important-tag">${e("👑",11)} Muhim kun</div>` : ""}
+      </div>
+
+      ${entry.title ? `<div class="j-detail-title-text">${escapeHtml(entry.title)}</div>` : ""}
+      ${entry.text ? `<div class="j-detail-body">${escapeHtml(entry.text)}</div>` : ""}
+      ${entry.hashtags ? `<div class="j-hashtags">${entry.hashtags.split(",").map(h => "#" + h.trim()).filter(h => h !== "#").join(" ")}</div>` : ""}
+
+      ${entry.photo_url ? `
+        <div class="j-detail-media">
+          ${entry.media_type === "video" ? `<video src="${entry.photo_url}" controls class="j-detail-img"></video>` : `<img src="${entry.photo_url}" class="j-detail-img">`}
+        </div>
+      ` : ""}
+
+      <div class="j-action-row">
+        <button class="j-action-btn ${entry.liked_by_me ? "liked" : ""}" id="jLikeBtn">${e(entry.liked_by_me ? "❤️" : "🤍",18)} ${entry.like_count}</button>
+        <span class="j-action-btn">${e("💬",18)} ${entry.comment_count}</span>
+        <span style="flex:1;"></span>
+        <button class="j-action-btn" id="jBookmarkBtn">${e("🔖",18)}</button>
+      </div>
+
+      <div class="j-comments-section">
+        <div class="j-comments-title">${e("💬",14)} Izohlar</div>
+        <div id="jCommentsList">
+          ${entry.comments.length ? entry.comments.map(c => `
+            <div class="j-comment">
+              <div class="j-avatar-sm">${(c.name||"?")[0]}</div>
+              <div style="flex:1;">
+                <div class="j-comment-head"><b>${escapeHtml(c.name)}</b> <span class="j-comment-time">${fmtDate(c.created_at)}</span></div>
+                <div class="j-comment-text">${escapeHtml(c.text)}</div>
+              </div>
+            </div>
+          `).join("") : `<div class="j-empty-sub" style="text-align:left; padding:8px 0;">Hali izoh yo'q</div>`}
+        </div>
+        <div class="j-comment-input-row">
+          <input type="text" id="jCommentInput" placeholder="Izoh qo'shish...">
+          <button class="q-send-btn" id="jCommentSend">${e("➕",16)}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("jBack").onclick = () => { haptic(); renderJournalList(); };
+  document.getElementById("jLikeBtn").onclick = async () => {
+    haptic();
+    await api(`/api/journal/${id}/like`, { method: "POST" });
+    openJournalDetail(id);
+  };
+  document.getElementById("jBookmarkBtn").onclick = async () => {
+    haptic();
+    const res = await api(`/api/journal/${id}/bookmark`, { method: "POST" });
+    toast(res.saved ? `Saqlandi ${e("🔖",14)}` : "Xatcho'pdan olindi");
+  };
+  document.getElementById("jCommentSend").onclick = async () => {
+    const input = document.getElementById("jCommentInput");
+    const text = input.value.trim();
+    if (!text) return;
+    haptic();
+    await api(`/api/journal/${id}/comments`, { method: "POST", body: formBody({text}) });
+    openJournalDetail(id);
+  };
+  document.getElementById("jEdit").onclick = () => openJournalForm(entry);
+  document.getElementById("jDeleteBtn").onclick = async () => {
+    if (!confirm("Xotirani o'chirmoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi.")) return;
+    await api(`/api/journal/${id}`, { method: "DELETE" });
+    toast("O'chirildi");
+    await loadJournal();
+  };
+}
+
+function openJournalForm(existing) {
+  const wrap = document.getElementById("journalFormWrap") || (() => {
+    const d = document.createElement("div"); d.id = "journalFormWrap"; document.getElementById("view-journal").appendChild(d); return d;
+  })();
+  const isEdit = !!existing;
   wrap.innerHTML = `
     <div class="modal-overlay open">
       <div class="modal-sheet">
-        <div class="modal-head"><h3>${e("✍️")} Yangi xotira</h3><button class="close-x" id="jCancel">✕</button></div>
-        <textarea id="jText" placeholder="Xotirangizni yozing..." rows="4"></textarea>
-        <input type="file" id="jPhoto" accept="image/*" style="margin-top:10px; color:var(--cream-dim); font-size:13px;">
-        <button class="btn btn-gold" style="margin-top:14px;" id="jSave">Saqlash</button>
+        <div class="modal-head"><h3>${e("✍️",16)} ${isEdit ? "Xotirani tahrirlash" : "Yangi xotira"}</h3><button class="close-x" id="jCancel">✕</button></div>
+        <input type="text" id="jTitle" placeholder="Sarlavha (ixtiyoriy)" value="${isEdit ? escapeHtml(existing.title||"") : ""}" style="margin-bottom:10px;">
+        <textarea id="jText" placeholder="Xotirangizni yozing..." rows="4">${isEdit ? escapeHtml(existing.text||"") : ""}</textarea>
+        ${isEdit ? "" : `<input type="file" id="jPhoto" accept="image/*,video/*" style="margin-top:10px; color:var(--cream-dim); font-size:13px;">`}
+        <input type="text" id="jLocation" placeholder="Joylashuv (ixtiyoriy)" value="${isEdit ? escapeHtml(existing.location||"") : ""}" style="margin-top:10px;">
+        <input type="text" id="jHashtags" placeholder="Hashtaglar, vergul bilan: biz, xotira" value="${isEdit ? escapeHtml(existing.hashtags||"") : ""}" style="margin-top:10px;">
+        <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13px; color:var(--cream-dim);">
+          <input type="checkbox" id="jImportant" ${isEdit && existing.is_important ? "checked" : ""} style="width:auto;"> ${e("👑",13)} Muhim kun sifatida belgilash
+        </label>
+        <button class="btn btn-gold" style="margin-top:14px;" id="jSave">${isEdit ? "Saqlash" : "Qo'shish"}</button>
       </div>
     </div>
   `;
   document.getElementById("jCancel").onclick = () => wrap.innerHTML = "";
   document.getElementById("jSave").onclick = async () => {
+    const title = document.getElementById("jTitle").value.trim();
     const text = document.getElementById("jText").value.trim();
-    const photoInput = document.getElementById("jPhoto");
-    const fd = new FormData();
-    fd.append("text", text);
-    if (photoInput.files[0]) fd.append("photo", photoInput.files[0]);
-    await api("/api/journal", { method:"POST", body: fd });
-    wrap.innerHTML = "";
-    toast(`Saqlandi ${e("💛",16)}`);
-    await loadJournal();
+    const location = document.getElementById("jLocation").value.trim();
+    const hashtags = document.getElementById("jHashtags").value.trim();
+    const isImportant = document.getElementById("jImportant").checked;
+    haptic();
+    if (isEdit) {
+      await api(`/api/journal/${existing.id}`, {
+        method: "PUT",
+        body: formBody({ title, text, location, hashtags, is_important: isImportant }),
+      });
+      wrap.innerHTML = "";
+      toast(`Yangilandi ${e("💛",16)}`);
+      openJournalDetail(existing.id);
+    } else {
+      const photoInput = document.getElementById("jPhoto");
+      const fd = new FormData();
+      fd.append("title", title);
+      fd.append("text", text);
+      fd.append("location", location);
+      fd.append("hashtags", hashtags);
+      fd.append("is_important", isImportant);
+      if (photoInput.files[0]) fd.append("photo", photoInput.files[0]);
+      await api("/api/journal", { method: "POST", body: fd });
+      wrap.innerHTML = "";
+      toast(`Saqlandi ${e("💛",16)}`);
+      await loadJournal();
+    }
   };
 }
 

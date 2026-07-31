@@ -53,7 +53,12 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.get("/health")
 def health():
     """Tashqi keep-alive xizmatlar (masalan cron-job.org) shu manzilni davriy chaqirib,
-    Render'ning bepul tarifida serverni uxlab qolishdan saqlashi mumkin."""
+    Render'ning bepul tarifida serverni uxlab qolishdan, va bazaga ulanishlarning
+    "jim turib" uzilib qolishidan saqlaydi."""
+    try:
+        db.get_setting("__healthcheck__")
+    except Exception as e:
+        logger.warning("Health check DB tekshiruvi muvaffaqiyatsiz: %s", e)
     return {"ok": True}
 
 
@@ -313,38 +318,147 @@ def api_moods(x_telegram_init_data: str = Header(None)):
 @app.post("/api/journal")
 async def api_add_journal(
     text: str = Form(""),
+    title: str = Form(""),
+    location: str = Form(""),
+    hashtags: str = Form(""),
+    is_important: bool = Form(False),
     photo: UploadFile = File(None),
     x_telegram_init_data: str = Header(None),
 ):
     user = await db_call(require_paired_user, x_telegram_init_data)
     photo_url = None
+    media_type = "text"
     if photo is not None and photo.filename:
         content = await photo.read()
         photo_url = await storage.upload_bytes(content, photo.filename, photo.content_type)
-    await db_call(db.add_journal, user["relationship_id"], user["user_id"], text, photo_url)
+        media_type = "video" if (photo.content_type or "").startswith("video") else "photo"
+    journal_id = await db_call(
+        db.add_journal, user["relationship_id"], user["user_id"], text, photo_url,
+        title or None, media_type, location or None, hashtags or None, is_important,
+    )
     partner = await db_call(db.partner_of, user["user_id"])
     if partner:
         try:
             await bot_app.bot.send_message(partner["user_id"], "📔 Kundalikka yangi xotira qo'shildi!")
         except Exception:
             pass
-    return {"ok": True}
+    return {"ok": True, "id": journal_id}
+
+
+def _serialize_journal(e, reactions, comment_counts):
+    r = reactions.get(e["id"], {"count": 0, "liked": False})
+    return {
+        "id": e["id"],
+        "author_id": e["author_id"],
+        "name": e["name"],
+        "title": e["title"],
+        "text": e["text"],
+        "photo_url": e["photo_path"],
+        "media_type": e["media_type"] or "text",
+        "location": e["location"],
+        "hashtags": e["hashtags"],
+        "is_important": bool(e["is_important"]),
+        "created_at": e["created_at"],
+        "like_count": r["count"],
+        "liked_by_me": r["liked"],
+        "comment_count": comment_counts.get(e["id"], 0),
+    }
 
 
 @app.get("/api/journal")
-def api_journal(x_telegram_init_data: str = Header(None)):
-    user = require_paired_user(x_telegram_init_data)
-    entries = db.recent_journal(user["relationship_id"], 30)
-    return [
-        {
-            "id": e["id"],
-            "name": e["name"],
-            "text": e["text"],
-            "photo_url": e["photo_path"],  # Supabase Storage'dagi to'liq ochiq URL
-            "created_at": e["created_at"],
-        }
-        for e in entries
-    ]
+async def api_journal(x_telegram_init_data: str = Header(None)):
+    user = await db_call(require_paired_user, x_telegram_init_data)
+    entries = await db_call(db.recent_journal, user["relationship_id"], 100)
+    reactions = await db_call(db.journal_reaction_summaries, user["relationship_id"], user["user_id"])
+    comment_counts = await db_call(db.journal_comment_counts, user["relationship_id"])
+    return [_serialize_journal(e, reactions, comment_counts) for e in entries]
+
+
+@app.get("/api/journal/{journal_id}")
+async def api_journal_detail(journal_id: int, x_telegram_init_data: str = Header(None)):
+    user = await db_call(require_paired_user, x_telegram_init_data)
+    entry = await db_call(db.get_journal_entry, journal_id)
+    if not entry or entry["relationship_id"] != user["relationship_id"]:
+        raise HTTPException(404, "Xotira topilmadi")
+    reaction = await db_call(db.journal_reaction_summary, journal_id, user["user_id"])
+    comments = await db_call(db.list_journal_comments, journal_id)
+    return {
+        **_serialize_journal(entry, {journal_id: reaction}, {}),
+        "comment_count": len(comments),
+        "comments": [
+            {"id": c["id"], "author_id": c["author_id"], "name": c["name"], "text": c["text"], "created_at": c["created_at"]}
+            for c in comments
+        ],
+    }
+
+
+@app.put("/api/journal/{journal_id}")
+async def api_journal_edit(
+    journal_id: int,
+    title: str = Form(""),
+    text: str = Form(""),
+    location: str = Form(""),
+    hashtags: str = Form(""),
+    is_important: bool = Form(False),
+    x_telegram_init_data: str = Header(None),
+):
+    user = await db_call(require_paired_user, x_telegram_init_data)
+    entry = await db_call(db.get_journal_entry, journal_id)
+    if not entry or entry["relationship_id"] != user["relationship_id"]:
+        raise HTTPException(404, "Xotira topilmadi")
+    await db_call(db.update_journal_entry, journal_id, title or None, text, is_important, location or None, hashtags or None)
+    return {"ok": True}
+
+
+@app.delete("/api/journal/{journal_id}")
+async def api_journal_delete(journal_id: int, x_telegram_init_data: str = Header(None)):
+    user = await db_call(require_paired_user, x_telegram_init_data)
+    entry = await db_call(db.get_journal_entry, journal_id)
+    if not entry or entry["relationship_id"] != user["relationship_id"]:
+        raise HTTPException(404, "Xotira topilmadi")
+    await db_call(db.delete_journal_entry, journal_id)
+    return {"ok": True}
+
+
+@app.post("/api/journal/{journal_id}/like")
+async def api_journal_like(journal_id: int, x_telegram_init_data: str = Header(None)):
+    user = await db_call(require_paired_user, x_telegram_init_data)
+    entry = await db_call(db.get_journal_entry, journal_id)
+    if not entry or entry["relationship_id"] != user["relationship_id"]:
+        raise HTTPException(404, "Xotira topilmadi")
+    liked = await db_call(db.toggle_journal_reaction, journal_id, user["user_id"])
+    if liked:
+        partner = await db_call(db.partner_of, user["user_id"])
+        if partner and entry["author_id"] == partner["user_id"]:
+            try:
+                await bot_app.bot.send_message(partner["user_id"], f"❤️ {user['name']} xotirangizni yoqtirdi!")
+            except Exception:
+                pass
+    summary = await db_call(db.journal_reaction_summary, journal_id, user["user_id"])
+    return summary
+
+
+@app.post("/api/journal/{journal_id}/bookmark")
+async def api_journal_bookmark(journal_id: int, x_telegram_init_data: str = Header(None)):
+    user = await db_call(require_paired_user, x_telegram_init_data)
+    saved = await db_call(db.toggle_journal_bookmark, journal_id, user["user_id"])
+    return {"saved": saved}
+
+
+@app.post("/api/journal/{journal_id}/comments")
+async def api_journal_add_comment(journal_id: int, text: str = Form(...), x_telegram_init_data: str = Header(None)):
+    user = await db_call(require_paired_user, x_telegram_init_data)
+    entry = await db_call(db.get_journal_entry, journal_id)
+    if not entry or entry["relationship_id"] != user["relationship_id"]:
+        raise HTTPException(404, "Xotira topilmadi")
+    await db_call(db.add_journal_comment, journal_id, user["user_id"], text)
+    partner = await db_call(db.partner_of, user["user_id"])
+    if partner:
+        try:
+            await bot_app.bot.send_message(partner["user_id"], f"💬 {user['name']} xotiraga izoh qoldirdi: {text[:80]}")
+        except Exception:
+            pass
+    return {"ok": True}
 
 
 # ---------- Rejalar ----------

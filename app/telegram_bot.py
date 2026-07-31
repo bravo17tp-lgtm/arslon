@@ -16,6 +16,7 @@ from telegram import (
     WebAppInfo,
 )
 from telegram.constants import ParseMode
+from telegram.request import HTTPXRequest
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -836,7 +837,16 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 # ============================================================
 
 def build_bot_app() -> Application:
-    application = Application.builder().token(BOT_TOKEN).build()
+    # Telegram API'ga doimiy, "isitilgan" ulanish puli — har bir tugma bosilganda
+    # yangi TLS handshake ochishning oldini oladi, javob tezligini oshiradi.
+    request = HTTPXRequest(
+        connection_pool_size=20,
+        pool_timeout=5.0,
+        connect_timeout=5.0,
+        read_timeout=10.0,
+        write_timeout=10.0,
+    )
+    application = Application.builder().token(BOT_TOKEN).request(request).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("admin", admin_panel))
