@@ -9,7 +9,7 @@ import asyncio
 import calendar
 import logging
 import os
-from datetime import date, datetime, time as dtime
+from datetime import date, datetime, time as dtime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -22,7 +22,10 @@ from telegram import Update
 from . import db
 from . import auth
 from . import storage
-from . content import MOOD_EMOJIS, QUESTIONS, QUOTES, LOVE_LANGUAGES, LOVE_TEST_QUESTIONS, THEMES
+from . content import (
+    MOOD_EMOJIS, MOOD_OPTIONS, MOOD_SCORE, MOOD_LABEL,
+    QUESTIONS, QUOTES, LOVE_LANGUAGES, LOVE_TEST_QUESTIONS, THEMES,
+)
 from . telegram_bot import build_bot_app, BOT_TOKEN
 from . jobs import daily_reminder_job, weekly_summary_job
 
@@ -302,14 +305,76 @@ async def api_set_mood(emoji: str = Form(...), note: str = Form(""), x_telegram_
     return {"ok": True}
 
 
-@app.get("/api/moods")
-def api_moods(x_telegram_init_data: str = Header(None)):
-    user = require_paired_user(x_telegram_init_data)
-    partner = db.partner_of(user["user_id"])
+@app.get("/api/mood/options")
+def api_mood_options():
+    return {"options": MOOD_OPTIONS}
+
+
+@app.get("/api/mood/insights")
+async def api_mood_insights(days: int = 30, x_telegram_init_data: str = Header(None)):
+    user = await db_call(require_paired_user, x_telegram_init_data)
+    partner = await db_call(db.partner_of, user["user_id"])
+
+    since = (date.today() - timedelta(days=days - 1)).isoformat()
+    mine_rows = await db_call(db.mood_since, user["user_id"], since)
+    theirs_rows = await db_call(db.mood_since, partner["user_id"], since) if partner else []
+
+    mine_map = {r["mood_date"].isoformat(): r for r in mine_rows}
+    theirs_map = {r["mood_date"].isoformat(): r for r in theirs_rows}
+
+    chart = []
+    d = date.fromisoformat(since)
+    today_d = date.today()
+    while d <= today_d:
+        ds = d.isoformat()
+        m = mine_map.get(ds)
+        t = theirs_map.get(ds)
+        chart.append({
+            "date": ds,
+            "my_score": MOOD_SCORE.get(m["emoji"]) if m else None,
+            "my_emoji": m["emoji"] if m else None,
+            "partner_score": MOOD_SCORE.get(t["emoji"]) if t else None,
+            "partner_emoji": t["emoji"] if t else None,
+        })
+        d += timedelta(days=1)
+
+    scores_mine = [MOOD_SCORE[r["emoji"]] for r in mine_rows if r["emoji"] in MOOD_SCORE]
+    good = sum(1 for s in scores_mine if s >= 6)
+    neutral = sum(1 for s in scores_mine if s in (4, 5))
+    bad = sum(1 for s in scores_mine if s <= 3)
+    overall_pct = round(100 * sum(1 for s in scores_mine if s >= 5) / len(scores_mine)) if scores_mine else 0
+
+    dated = [(r["mood_date"], MOOD_SCORE[r["emoji"]], r["emoji"]) for r in mine_rows if r["emoji"] in MOOD_SCORE]
+    best = max(dated, key=lambda x: x[1]) if dated else None
+    worst = min(dated, key=lambda x: x[1]) if dated else None
+
+    same_mood_days = sum(
+        1 for ds, m in mine_map.items() if ds in theirs_map and theirs_map[ds]["emoji"] == m["emoji"]
+    )
+
+    def week_avg(rows_map, start_offset, end_offset):
+        vals = [
+            MOOD_SCORE[r["emoji"]] for ds, r in rows_map.items()
+            if start_offset <= (today_d - date.fromisoformat(ds)).days < end_offset and r["emoji"] in MOOD_SCORE
+        ]
+        return sum(vals) / len(vals) if vals else None
+
+    def week_change(rows_map):
+        a, b = week_avg(rows_map, 0, 7), week_avg(rows_map, 7, 14)
+        if a is None or b is None or b == 0:
+            return None
+        return round(((a - b) / b) * 100)
+
     return {
-        "mine": [dict(r) for r in db.mood_history(user["user_id"], 30)],
-        "partner": [dict(r) for r in db.mood_history(partner["user_id"], 30)] if partner else [],
+        "options": MOOD_OPTIONS,
         "partner_name": partner["name"] if partner else None,
+        "overview": {"good": good, "neutral": neutral, "bad": bad, "overall_pct": overall_pct, "days": days},
+        "chart": chart,
+        "best_day": {"date": best[0].isoformat(), "emoji": best[2], "label": MOOD_LABEL.get(best[2])} if best else None,
+        "worst_day": {"date": worst[0].isoformat(), "emoji": worst[2], "label": MOOD_LABEL.get(worst[2])} if worst else None,
+        "same_mood_days": same_mood_days,
+        "my_change_pct": week_change(mine_map),
+        "partner_change_pct": week_change(theirs_map) if partner else None,
     }
 
 

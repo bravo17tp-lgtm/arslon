@@ -626,6 +626,14 @@ def mood_history(user_id: int, days: int = 30):
         ).fetchall()
 
 
+def mood_since(user_id: int, since_date: str):
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT mood_date, emoji, note FROM moods WHERE user_id=%s AND mood_date >= %s ORDER BY mood_date ASC",
+            (user_id, since_date),
+        ).fetchall()
+
+
 # ============================================================
 # Rejalar
 # ============================================================

@@ -1,6 +1,25 @@
 """Statik kontent: savollar, iqtiboslar, sevgi tili testi."""
 
-MOOD_EMOJIS = ["😄", "🙂", "😐", "😔", "😢", "😡", "🥱", "🥰"]
+MOOD_OPTIONS = [
+    {"key": "zor", "emoji": "🥰", "label": "Zo'r", "score": 7,
+     "title": "Ajoyib! 🥰", "message": "Bugun juda yaxshi kayfiyatdasiz! Shu quvonch doim siz bilan bo'lsin."},
+    {"key": "yaxshi", "emoji": "😄", "label": "Yaxshi", "score": 6,
+     "title": "Zo'r! 😊", "message": "Kayfiyatingiz yaxshi — buni his qilish ajoyib."},
+    {"key": "oddiy", "emoji": "😐", "label": "Oddiy", "score": 5,
+     "title": "Sokin kun 😐", "message": "Har kun ajoyib bo'lishi shart emas — bugun ham o'z o'rnida."},
+    {"key": "charchagan", "emoji": "🥱", "label": "Charchagan", "score": 4,
+     "title": "Charchagansiz 🥱", "message": "Biroz dam oling — sherigingiz sizni tushunadi."},
+    {"key": "yomon", "emoji": "😔", "label": "Yomon", "score": 3,
+     "title": "Yaxshi emas ekan 😔", "message": "Ertaga yaxshiroq bo'ladi. Sherigingiz sizni yoniga chorlaydi."},
+    {"key": "juda_yomon", "emoji": "😢", "label": "Juda yomon", "score": 2,
+     "title": "Qiyin kun ekan 😢", "message": "Yolg'iz emassiz — sherigingiz doim yoningizda."},
+    {"key": "jahlim_chiqdi", "emoji": "😡", "label": "Jahlim chiqdi", "score": 1,
+     "title": "Asabiylashdingiz 😡", "message": "Chuqur nafas oling — bu ham o'tib ketadi."},
+]
+MOOD_EMOJIS = [m["emoji"] for m in MOOD_OPTIONS]
+MOOD_SCORE = {m["emoji"]: m["score"] for m in MOOD_OPTIONS}
+MOOD_LABEL = {m["emoji"]: m["label"] for m in MOOD_OPTIONS}
+MOOD_BY_EMOJI = {m["emoji"]: m for m in MOOD_OPTIONS}
 
 THEMES = {
     "tungi": {
