@@ -292,10 +292,23 @@
   .m-header-mid{ flex:1; text-align:center; }
   .m-header-title{ font-family:'Fraunces',serif; font-size:19px; font-weight:600; color:var(--cream); display:flex; align-items:center; justify-content:center; gap:6px; }
   .m-header-sub{ font-size:11.5px; color:var(--cream-faint); margin-top:3px; }
-  .m-days-pill{ background:rgba(224,149,140,0.08); border:1px solid var(--coral); color:var(--coral); border-radius:20px; padding:8px 12px; font-size:12px; -webkit-appearance:none; appearance:none; }
+  .m-days-wrap{ position:relative; }
+  .m-days-pill{ background:rgba(224,149,140,0.08); border:1px solid var(--coral); color:var(--coral); border-radius:20px; padding:8px 12px; font-size:12px; white-space:nowrap; }
+  .m-days-menu{ position:absolute; top:calc(100% + 6px); right:0; background:var(--bg2); border:1px solid var(--line-strong); border-radius:12px; padding:6px; display:none; flex-direction:column; gap:2px; z-index:10; box-shadow:0 12px 30px -8px rgba(0,0,0,0.5); min-width:90px; }
+  .m-days-menu.open{ display:flex; }
+  .m-days-menu button{ background:none; color:var(--cream-dim); font-size:12.5px; padding:8px 10px; border-radius:8px; text-align:left; }
+  .m-days-menu button.active{ background:var(--coral-soft); color:var(--coral); }
+
+  .m-subtabs{ display:flex; gap:6px; margin-bottom:12px; }
+  .m-subtabs button{ flex:1; background:rgba(243,234,217,0.04); border:1px solid var(--line-strong); color:var(--cream-faint); border-radius:12px; padding:9px 4px; font-size:10.5px; white-space:nowrap; transition:all .2s ease; }
+  .m-subtabs button.active{ background:var(--coral-soft); border-color:var(--coral); color:var(--coral); font-weight:600; }
+  #view-mood{ display:flex; flex-direction:column; height:calc(100dvh - 235px); min-height:320px; }
+  .m-sub-content{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .m-fit{ margin-bottom:10px; }
 
   .m-today-card{ background:linear-gradient(165deg, var(--bg3), var(--bg2)); }
-  .m-today-label{ font-size:10.5px; letter-spacing:0.1em; color:var(--cream-faint); font-weight:600; margin-bottom:14px; }
+  .m-today-label{ font-size:10.5px; letter-spacing:0.1em; color:var(--cream-faint); font-weight:600; margin-bottom:4px; }
+  .m-today-date{ font-size:11.5px; color:var(--cream-dim); margin-bottom:14px; }
   .m-today-row{ display:flex; gap:16px; align-items:center; }
   .m-today-emoji-wrap{ flex-shrink:0; width:84px; height:84px; border-radius:50%; background:var(--coral-soft); display:flex; align-items:center; justify-content:center; box-shadow:0 0 30px -4px var(--coral-soft); }
   .m-today-title{ font-family:'Fraunces',serif; font-size:16px; font-weight:600; color:var(--cream); }
@@ -317,17 +330,18 @@
   .m-overview-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .m-ov-box{ border-radius:14px; padding:14px; border:1px solid var(--line-strong); background:rgba(243,234,217,0.03); }
   .m-ov-num{ font-family:'Fraunces',serif; font-size:22px; font-weight:700; }
-  .m-ov-good .m-ov-num{ color:#8fd19e; }
+  .m-ov-good .m-ov-num{ color:var(--coral); }
   .m-ov-neutral .m-ov-num{ color:#b79ee0; }
   .m-ov-bad .m-ov-num{ color:#7aa2e8; }
   .m-ov-pct .m-ov-num{ color:var(--gold); font-size:18px; }
   .m-ov-label{ font-size:11.5px; color:var(--cream); margin-top:4px; }
   .m-ov-sub{ font-size:10px; color:var(--cream-faint); margin-top:2px; }
 
-  .m-mini-stats{ display:flex; flex-direction:column; gap:8px; margin-top:16px; }
-  .m-mini-stat{ display:flex; align-items:center; gap:10px; background:rgba(243,234,217,0.03); border:1px solid var(--line-strong); border-radius:12px; padding:10px 12px; }
-  .m-mini-label{ font-size:11px; color:var(--cream-faint); }
-  .m-mini-val{ font-size:13px; color:var(--cream); font-weight:600; margin-top:2px; }
+  .m-mini-stats{ display:flex; gap:6px; margin-top:16px; }
+  .m-mini-stat{ flex:1; display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:6px; background:rgba(243,234,217,0.03); border:1px solid var(--line-strong); border-radius:12px; padding:10px 8px; min-width:0; }
+  .m-mini-icon{ font-size:15px; }
+  .m-mini-label{ font-size:9.5px; color:var(--cream-faint); line-height:1.2; }
+  .m-mini-val{ font-size:11px; color:var(--cream); font-weight:600; margin-top:2px; line-height:1.25; }
 
   .m-analysis-row{ display:flex; gap:12px; }
   .m-analysis-box{ flex:1; background:rgba(243,234,217,0.03); border:1px solid var(--line-strong); border-radius:14px; padding:14px; }
@@ -1255,10 +1269,12 @@ function moodOptByEmoji(emoji) {
   return (MOOD_OPTIONS_CACHE || []).find(o => o.emoji === emoji);
 }
 
+let MOOD_SUBTAB = "today";
+let MOOD_INSIGHTS_CACHE = null;
+
 function renderMoodPage(insights) {
+  MOOD_INSIGHTS_CACHE = insights;
   const el = document.getElementById("view-mood");
-  const todayOpt = STATE.my_mood ? moodOptByEmoji(STATE.my_mood) : null;
-  const ov = insights.overview;
 
   el.innerHTML = `
     <div class="m-header">
@@ -1267,127 +1283,156 @@ function renderMoodPage(insights) {
         <div class="m-header-title">Kayfiyat ${e("💞",18)}</div>
         <div class="m-header-sub">O'zingizni qanday his qildingiz?</div>
       </div>
-      <select id="mDaysSelect" class="m-days-pill">
-        <option value="7" ${MOOD_DAYS===7?"selected":""}>7 kun</option>
-        <option value="30" ${MOOD_DAYS===30?"selected":""}>30 kun</option>
-        <option value="90" ${MOOD_DAYS===90?"selected":""}>90 kun</option>
-      </select>
-    </div>
-
-    <div class="card m-today-card">
-      <div class="m-today-label">${e("📅",13)} BUGUNGI KAYFIYAT</div>
-      <div class="m-today-row">
-        <div class="m-today-emoji-wrap">
-          <div class="m-today-emoji">${todayOpt ? e(todayOpt.emoji,64) : e("🤍",64)}</div>
-        </div>
-        <div class="m-today-text">
-          ${todayOpt ? `
-            <div class="m-today-title">${todayOpt.title}</div>
-            <div class="m-today-msg">${todayOpt.message}</div>
-          ` : `
-            <div class="m-today-title">Hali belgilanmagan</div>
-            <div class="m-today-msg">Bugungi kayfiyatingizni pastdan tanlang.</div>
-          `}
-          <div class="m-today-actions">
-            ${todayOpt ? `<button class="pill-btn" id="mChangeBtn">${e("✏️",13)} O'zgartirish</button>` : ""}
-            <button class="pill-btn pill-btn-solid" id="mNoteBtn">${e("📋",13)} Izoh yozish</button>
-          </div>
+      <div class="m-days-wrap">
+        <button class="m-days-pill" id="mDaysBtn">${e("📅",13)} Tarix</button>
+        <div class="m-days-menu" id="mDaysMenu">
+          <button data-v="7" class="${MOOD_DAYS===7?"active":""}">7 kun</button>
+          <button data-v="30" class="${MOOD_DAYS===30?"active":""}">30 kun</button>
+          <button data-v="90" class="${MOOD_DAYS===90?"active":""}">90 kun</button>
         </div>
       </div>
     </div>
 
-    <div class="card" id="mPickerCard" style="${todayOpt ? "display:none;" : ""}">
-      <h3 class="m-section-label">KAYFIYAT TANLANG</h3>
-      <div class="m-picker-row">
-        ${insights.options.map(o => `
-          <button class="m-pick ${STATE.my_mood===o.emoji ? "active" : ""}" data-emoji="${o.emoji}">
-            <span class="m-pick-emoji">${e(o.emoji,30)}</span>
-            <span class="m-pick-label">${o.label}</span>
-          </button>
-        `).join("")}
-      </div>
-      <textarea id="mNote" placeholder="Kayfiyatingiz haqida yozing (ixtiyoriy)..." rows="3" maxlength="200"></textarea>
-      <div class="m-char-count" id="mCharCount">0/200</div>
-      <button class="btn m-save-btn" id="mSaveBtn">${e("🤍",16)} Kayfiyatni saqlash</button>
+    <div class="m-subtabs">
+      <button data-sub="today" class="${MOOD_SUBTAB==="today"?"active":""}">${e("😊",13)} Bugungi</button>
+      <button data-sub="stats" class="${MOOD_SUBTAB==="stats"?"active":""}">${e("📊",13)} Statistika</button>
+      <button data-sub="chart" class="${MOOD_SUBTAB==="chart"?"active":""}">${e("📈",13)} Grafik</button>
+      <button data-sub="analysis" class="${MOOD_SUBTAB==="analysis"?"active":""}">${e("🧠",13)} Tahlil</button>
     </div>
 
-    <div class="card">
-      <h3 class="m-section-label">UMUMIY KO'RINISH</h3>
-      <div class="m-overview-grid">
-        <div class="m-ov-box m-ov-good"><div class="m-ov-num">${ov.good}</div><div class="m-ov-label">Yaxshi kunlar</div><div class="m-ov-sub">(${ov.days} kunda)</div></div>
-        <div class="m-ov-box m-ov-neutral"><div class="m-ov-num">${ov.neutral}</div><div class="m-ov-label">Oddiy kunlar</div><div class="m-ov-sub">(${ov.days} kunda)</div></div>
-        <div class="m-ov-box m-ov-bad"><div class="m-ov-num">${ov.bad}</div><div class="m-ov-label">Yomon kunlar</div><div class="m-ov-sub">(${ov.days} kunda)</div></div>
-        <div class="m-ov-box m-ov-pct"><div class="m-ov-num">${e("⭐",14)} ${ov.overall_pct}%</div><div class="m-ov-label">Umumiy kayfiyat</div><div class="m-ov-sub">(ijobiy)</div></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3 class="m-section-label">KAYFIYAT TARIXI</h3>
-      <div class="m-legend-row">
-        <span><span class="dot" style="background:var(--coral);"></span>Siz</span>
-        ${insights.partner_name ? `<span><span class="dot" style="background:#7aa2e8;"></span>${insights.partner_name}</span>` : ""}
-      </div>
-      <canvas id="moodChart" height="190"></canvas>
-      <div class="m-mini-stats">
-        <div class="m-mini-stat"><div class="m-mini-icon">${e("✨",16)}</div><div><div class="m-mini-label">Eng yaxshi kun</div><div class="m-mini-val">${insights.best_day ? fmtDateOnly(insights.best_day.date) + " " + e(insights.best_day.emoji,15) : "—"}</div></div></div>
-        <div class="m-mini-stat"><div class="m-mini-icon">${e("💔",16)}</div><div><div class="m-mini-label">Eng qiyin kun</div><div class="m-mini-val">${insights.worst_day ? fmtDateOnly(insights.worst_day.date) + " " + e(insights.worst_day.emoji,15) : "—"}</div></div></div>
-        <div class="m-mini-stat"><div class="m-mini-icon">${e("💙",16)}</div><div><div class="m-mini-label">O'xshash kunlar</div><div class="m-mini-val">${insights.same_mood_days} kun</div></div></div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-bottom:90px;">
-      <h3 class="m-section-label">HIS-TUYG'U TAHLILI</h3>
-      <div class="m-analysis-row">
-        <div class="m-analysis-box">
-          <div class="m-analysis-icon m-analysis-icon-mine">${e("📈",15)}</div>
-          <div class="m-analysis-name">Siz</div>
-          <div class="m-analysis-text">Bu hafta kayfiyatingiz o'tgan haftaga nisbatan ${moodChangeText(insights.my_change_pct)}</div>
-        </div>
-        <div class="m-analysis-box">
-          <div class="m-analysis-icon m-analysis-icon-partner">${e("❤️",15)}</div>
-          <div class="m-analysis-name">${insights.partner_name || "Sherik"}</div>
-          <div class="m-analysis-text">Bu hafta kayfiyati o'tgan haftaga nisbatan ${insights.partner_name ? moodChangeText(insights.partner_change_pct) : "hali ma'lumot yo'q"}</div>
-        </div>
-      </div>
-    </div>
+    <div id="mSubContent" class="m-sub-content"></div>
   `;
 
   document.getElementById("mBack").onclick = () => { haptic(); switchTab("home"); };
-  document.getElementById("mDaysSelect").onchange = async ev => {
-    MOOD_DAYS = parseInt(ev.target.value);
-    const fresh = await api(`/api/mood/insights?days=${MOOD_DAYS}`);
-    renderMoodPage(fresh);
+  document.getElementById("mDaysBtn").onclick = () => {
+    haptic();
+    document.getElementById("mDaysMenu").classList.toggle("open");
   };
-  document.getElementById("mNoteBtn").onclick = () => {
-    document.getElementById("mPickerCard").style.display = "";
-    document.getElementById("mPickerCard").scrollIntoView({behavior:"smooth", block:"center"});
-  };
-  const changeBtn = document.getElementById("mChangeBtn");
-  if (changeBtn) changeBtn.onclick = () => {
-    document.getElementById("mPickerCard").style.display = "";
-    document.getElementById("mPickerCard").scrollIntoView({behavior:"smooth", block:"center"});
-  };
-
-  let selectedEmoji = STATE.my_mood || null;
-  document.querySelectorAll(".m-pick").forEach(btn => {
-    btn.onclick = () => {
+  document.querySelectorAll("#mDaysMenu button").forEach(btn => {
+    btn.onclick = async () => {
       haptic();
-      document.querySelectorAll(".m-pick").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      selectedEmoji = btn.dataset.emoji;
+      MOOD_DAYS = parseInt(btn.dataset.v);
+      document.getElementById("mDaysMenu").classList.remove("open");
+      const fresh = await api(`/api/mood/insights?days=${MOOD_DAYS}`);
+      renderMoodPage(fresh);
     };
   });
-  const noteEl = document.getElementById("mNote");
-  noteEl.oninput = () => { document.getElementById("mCharCount").textContent = `${noteEl.value.length}/200`; };
-  document.getElementById("mSaveBtn").onclick = async () => {
-    if (!selectedEmoji) { toast("Avval kayfiyatni tanlang"); return; }
-    haptic();
-    await api("/api/mood", { method: "POST", body: formBody({ emoji: selectedEmoji, note: noteEl.value.trim() }) });
-    toast(`Kayfiyat saqlandi ${e("💛",16)}`);
-    await loadMood();
-  };
+  document.querySelectorAll(".m-subtabs button").forEach(btn => {
+    btn.onclick = () => { haptic(); MOOD_SUBTAB = btn.dataset.sub; renderMoodPage(MOOD_INSIGHTS_CACHE); };
+  });
 
-  renderMoodChart(insights.chart, insights.options);
+  renderMoodSubContent(insights);
+}
+
+function renderMoodSubContent(insights) {
+  const wrap = document.getElementById("mSubContent");
+  const todayOpt = STATE.my_mood ? moodOptByEmoji(STATE.my_mood) : null;
+  const ov = insights.overview;
+
+  if (MOOD_SUBTAB === "today") {
+    wrap.innerHTML = `
+      <div class="card m-today-card m-fit">
+        <div class="m-today-label">BUGUNGI KAYFIYAT</div>
+        <div class="m-today-date">${e("📅",12)} ${new Date().toLocaleDateString("uz-UZ",{day:"numeric",month:"long",year:"numeric"})}</div>
+        <div class="m-today-row">
+          <div class="m-today-emoji-wrap">
+            <div class="m-today-emoji">${todayOpt ? e(todayOpt.emoji,60) : e("🤍",60)}</div>
+          </div>
+          <div class="m-today-text">
+            ${todayOpt ? `
+              <div class="m-today-title">${todayOpt.title}</div>
+              <div class="m-today-msg">${todayOpt.message}</div>
+            ` : `
+              <div class="m-today-title">Hali belgilanmagan</div>
+              <div class="m-today-msg">Pastdan kayfiyatingizni tanlang.</div>
+            `}
+          </div>
+        </div>
+      </div>
+      <div class="card m-fit" id="mPickerCard">
+        <h3 class="m-section-label">KAYFIYAT TANLANG</h3>
+        <div class="m-picker-row">
+          ${insights.options.map(o => `
+            <button class="m-pick ${STATE.my_mood===o.emoji ? "active" : ""}" data-emoji="${o.emoji}">
+              <span class="m-pick-emoji">${e(o.emoji,24)}</span>
+              <span class="m-pick-label">${o.label}</span>
+            </button>
+          `).join("")}
+        </div>
+        <textarea id="mNote" placeholder="Kayfiyatingiz haqida yozing (ixtiyoriy)..." rows="2" maxlength="200"></textarea>
+        <div class="m-char-count" id="mCharCount">0/200</div>
+        <button class="btn m-save-btn" id="mSaveBtn">${e("🤍",15)} Kayfiyatni saqlash</button>
+      </div>
+    `;
+    let selectedEmoji = STATE.my_mood || null;
+    document.querySelectorAll(".m-pick").forEach(btn => {
+      btn.onclick = () => {
+        haptic();
+        document.querySelectorAll(".m-pick").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        selectedEmoji = btn.dataset.emoji;
+      };
+    });
+    const noteEl = document.getElementById("mNote");
+    noteEl.oninput = () => { document.getElementById("mCharCount").textContent = `${noteEl.value.length}/200`; };
+    document.getElementById("mSaveBtn").onclick = async () => {
+      if (!selectedEmoji) { toast("Avval kayfiyatni tanlang"); return; }
+      haptic();
+      await api("/api/mood", { method: "POST", body: formBody({ emoji: selectedEmoji, note: noteEl.value.trim() }) });
+      toast(`Kayfiyat saqlandi ${e("💛",16)}`);
+      await loadMood();
+    };
+
+  } else if (MOOD_SUBTAB === "stats") {
+    wrap.innerHTML = `
+      <div class="card m-fit">
+        <h3 class="m-section-label">UMUMIY KO'RINISH</h3>
+        <div class="m-overview-grid">
+          <div class="m-ov-box m-ov-good"><div class="m-ov-num">${ov.good}</div><div class="m-ov-label">Yaxshi kunlar</div><div class="m-ov-sub">(${ov.days} kunda)</div></div>
+          <div class="m-ov-box m-ov-neutral"><div class="m-ov-num">${ov.neutral}</div><div class="m-ov-label">Oddiy kunlar</div><div class="m-ov-sub">(${ov.days} kunda)</div></div>
+          <div class="m-ov-box m-ov-bad"><div class="m-ov-num">${ov.bad}</div><div class="m-ov-label">Yomon kunlar</div><div class="m-ov-sub">(${ov.days} kunda)</div></div>
+          <div class="m-ov-box m-ov-pct"><div class="m-ov-num">${e("⭐",14)} ${ov.overall_pct}%</div><div class="m-ov-label">Umumiy kayfiyat</div><div class="m-ov-sub">(ijobiy)</div></div>
+        </div>
+        <div class="m-mini-stats" style="margin-top:20px;">
+          <div class="m-mini-stat"><div class="m-mini-icon">${e("✨",16)}</div><div class="m-mini-label">Eng yaxshi kun</div><div class="m-mini-val">${insights.best_day ? fmtDateOnly(insights.best_day.date) + " " + e(insights.best_day.emoji,15) : "—"}</div></div>
+          <div class="m-mini-stat"><div class="m-mini-icon">${e("💔",16)}</div><div class="m-mini-label">Eng qiyin kun</div><div class="m-mini-val">${insights.worst_day ? fmtDateOnly(insights.worst_day.date) + " " + e(insights.worst_day.emoji,15) : "—"}</div></div>
+          <div class="m-mini-stat"><div class="m-mini-icon">${e("💙",16)}</div><div class="m-mini-label">O'xshash kunlar</div><div class="m-mini-val">${insights.same_mood_days} kun</div></div>
+        </div>
+      </div>
+    `;
+
+  } else if (MOOD_SUBTAB === "chart") {
+    wrap.innerHTML = `
+      <div class="card m-fit">
+        <h3 class="m-section-label">KAYFIYAT TARIXI</h3>
+        <div class="m-legend-row">
+          <span><span class="dot" style="background:var(--coral);"></span>Siz</span>
+          ${insights.partner_name ? `<span><span class="dot" style="background:#7aa2e8;"></span>${insights.partner_name}</span>` : ""}
+        </div>
+        <canvas id="moodChart" height="230"></canvas>
+      </div>
+    `;
+    renderMoodChart(insights.chart, insights.options);
+
+  } else if (MOOD_SUBTAB === "analysis") {
+    wrap.innerHTML = `
+      <div class="card m-fit">
+        <h3 class="m-section-label">HIS-TUYG'U TAHLILI</h3>
+        <div class="m-analysis-row">
+          <div class="m-analysis-box">
+            <div class="m-analysis-icon m-analysis-icon-mine">${e("📈",15)}</div>
+            <div class="m-analysis-name">Siz</div>
+            <div class="m-analysis-text">Bu hafta kayfiyatingiz o'tgan haftaga nisbatan ${moodChangeText(insights.my_change_pct)}</div>
+          </div>
+          <div class="m-analysis-box">
+            <div class="m-analysis-icon m-analysis-icon-partner">${e("❤️",15)}</div>
+            <div class="m-analysis-name">${insights.partner_name || "Sherik"}</div>
+            <div class="m-analysis-text">Bu hafta kayfiyati o'tgan haftaga nisbatan ${insights.partner_name ? moodChangeText(insights.partner_change_pct) : "hali ma'lumot yo'q"}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 }
 
 function moodChangeText(pct) {
